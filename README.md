@@ -72,6 +72,15 @@ _deploy/
 - 改檢查頻率 / 時段:編輯 `.github/workflows/line-alert.yml` 的 `cron`
 - 看板內容:`index.html` 內 `ANALYZED` 陣列
 
+## 多人 / LINE 群組推播
+- `LINE_USER_ID` 可填**逗號分隔**的多個收件人:多位使用者的 userId、或群組 groupId(Bot 需先被加入該群組),例如 `Uxxx,Uyyy,Cgroupzzz`
+- 或填 `broadcast`:**廣播**給所有加 Bot 好友的人
+- 取得 groupId:需設一個 webhook 接收 LINE 事件(把 Bot 拉進群組後,從事件取得 `source.groupId`)
+
+## 回測績效追蹤
+- 每次到價買訊,`line_alert.py` 會把 `{日期, 代號, 訊號價, 便宜價}` 寫入 `signals_log.json`(由 workflow 自動 commit)
+- 看板「📈 績效」分頁:讀取 `signals_log.json`,自動算每筆買訊**至今報酬、勝率、平均報酬**,並列出目前符合買訊的股票
+
 ## 注意
 - GitHub Actions 排程偶爾延遲幾分鐘,屬正常。
 - 報價來自證交所經第三方代理,可能延遲;**本工具只通知不下單**,下單請於元大App以憑證親自確認。

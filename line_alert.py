@@ -62,15 +62,27 @@ def get_news(name):
         print("news err:", e)
     return None, None
 
+def _line_post(path, payload):
+    req = urllib.request.Request("https://api.line.me/v2/bot/message/" + path,
+        data=json.dumps(payload).encode(), method="POST",
+        headers={"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"})
+    with _open(req, 15) as r: return r.status
+
 def push(text):
-    if not TOKEN or not USER_ID:
-        print("[未設定 LINE_TOKEN/USER_ID] 訊息:\n"+text); return
-    body = json.dumps({"to":USER_ID,"messages":[{"type":"text","text":text}]}).encode()
-    req = urllib.request.Request("https://api.line.me/v2/bot/message/push", data=body, method="POST",
-        headers={"Authorization":f"Bearer {TOKEN}","Content-Type":"application/json"})
-    try:
-        with _open(req, 15) as r: print("LINE push", r.status)
-    except Exception as e: print("LINE push err:", e)
+    """多人/群組:LINE_USER_ID 可填逗號分隔的多個 userId/groupId;填 broadcast 則廣播給所有好友。"""
+    if not TOKEN:
+        print("[未設定 LINE_TOKEN] 訊息:\n" + text); return
+    msg = [{"type": "text", "text": text}]
+    targets = [t.strip() for t in USER_ID.split(",") if t.strip()]
+    if not targets:
+        print("[未設定 LINE_USER_ID] 訊息:\n" + text); return
+    if targets == ["broadcast"]:
+        try: print("LINE broadcast", _line_post("broadcast", {"messages": msg}))
+        except Exception as e: print("broadcast err:", e)
+        return
+    for t in targets:                    # 逐一推播(支援多位使用者與群組)
+        try: print(f"LINE push {t[:6]}…", _line_post("push", {"to": t, "messages": msg}))
+        except Exception as e: print("push err:", e)
 
 # ===== Web Push(手機關App也能收;讀 subscriptions.json + VAPID 私鑰)=====
 _WEB = {"init": False, "subs": [], "ready": False}
@@ -105,6 +117,15 @@ def load_state():
 def save_state(s):
     json.dump(s, open(STATE,"w"), ensure_ascii=False)
 
+def log_signal(code, name, mkt, price, cheap):
+    """記錄每次買訊(進場參考)到 signals_log.json,供看板回測績效追蹤。"""
+    try: log = json.load(open("signals_log.json"))
+    except Exception: log = []
+    if not isinstance(log, list): log = []
+    log.append({"date": datetime.date.today().isoformat(), "code": code, "name": name,
+                "mkt": mkt, "price": price, "cheap": cheap})
+    json.dump(log, open("signals_log.json", "w"), ensure_ascii=False)
+
 def check():
     today = datetime.date.today().isoformat()
     st = load_state()
@@ -123,6 +144,7 @@ def check():
                  f"可考慮分批買進(請自行確認基本面與風險){news_line}\n— 台股高ROE看板")
             wp_body = f"{name}({code}) {px} ≤ 便宜價 {cheap},可分批買進" + (f"\n📰 {nt}" if nt else "")
             web_push("🟢 台股高ROE 到價買訊", wp_body, nl or yahoo(code, mkt))
+            log_signal(code, name, mkt, px, cheap)   # 記錄買訊供回測績效追蹤
             print(f"ALERT {name}{code} {px}<= {cheap}")
         else:
             print(f"  {name}{code}: {px} (便宜價 {cheap}){' 已通知' if code in st['alerted'] else ''}")
