@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>台股高ROE 行動看板</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#14233A">
+<style>
+  :root{--mid:#14233A;--mid2:#1B2F4D;--gold:#C9A227;--goldlt:#E8C75A;--bg:#0E1726;--card:#172539;
+    --line:#26384f;--tx:#E8ECF3;--mut:#8A97AC;--up:#E0403A;--down:#22A06B;--lineg:#06C755;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+    background:var(--bg);color:var(--tx);font-size:15px;line-height:1.5;padding-bottom:70px;}
+  header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,var(--mid),var(--mid2));
+    border-bottom:2px solid var(--gold);padding:9px 13px;}
+  .htop{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .brand{font-weight:700;font-size:15.5px;}.brand b{color:var(--gold);}
+  .logo{display:inline-flex;align-items:flex-end;gap:2px;height:15px;margin-right:5px;vertical-align:-2px;}
+  .logo i{width:3px;background:var(--gold);border-radius:1px;}
+  .status{font-size:11px;color:var(--mut);margin-top:3px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--mut);}.dot.open{background:var(--down);box-shadow:0 0 6px var(--down);}.dot.closed{background:var(--up);}
+  .ctrls{display:flex;gap:7px;margin-top:7px;}
+  .btn{flex:1;background:#22344f;color:var(--tx);border:1px solid var(--line);border-radius:9px;padding:7px;font-size:12.5px;font-weight:600;text-align:center;cursor:pointer;}
+  .btn.g{background:var(--gold);color:#1a1407;border:none;}.btn.on{background:var(--down);color:#fff;border:none;}
+  .addbar{display:flex;gap:7px;margin-top:7px;}
+  .addbar input{flex:1;background:#0e1726;border:1px solid var(--line);border-radius:9px;color:var(--tx);padding:8px 10px;font-size:14px;}
+  .addbar button{background:var(--gold);color:#1a1407;border:none;border-radius:9px;padding:0 16px;font-weight:700;font-size:14px;cursor:pointer;}
+  .disc{background:#2a1d0a;border:1px solid #5a4410;color:#d8c074;font-size:11px;padding:7px 12px;line-height:1.45;}
+  .wrap{padding:10px;}
+  .filterrow{display:flex;gap:6px;margin-bottom:10px;overflow-x:auto;padding-bottom:2px;}
+  .chip{white-space:nowrap;font-size:12px;padding:6px 12px;border-radius:20px;background:#1d2c44;color:var(--mut);border:1px solid var(--line);cursor:pointer;}
+  .chip.sel{background:var(--gold);color:#1a1407;border-color:var(--gold);font-weight:700;}
+  .sec{font-size:12px;color:var(--gold);font-weight:700;margin:6px 2px 8px;letter-spacing:.5px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:11px 12px;margin-bottom:9px;}
+  .crow{display:flex;justify-content:space-between;align-items:flex-start;}
+  .name{font-size:16.5px;font-weight:700;}.name small{font-size:12px;color:var(--mut);font-weight:400;margin-left:4px;}
+  .badge{font-size:10px;padding:1px 6px;border-radius:6px;background:#22344f;color:var(--mut);margin-left:5px;vertical-align:2px;}
+  .badge.s{color:var(--goldlt);}.badge.w{color:#7fd4ff;}
+  .px{text-align:right;white-space:nowrap;}
+  .px .v{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;}
+  .px .chg{font-size:12px;font-weight:700;}
+  .px .live{font-size:9.5px;color:var(--mut);}.px .live.on{color:var(--down);}
+  .up{color:var(--up);}.down{color:var(--down);}.flat{color:var(--mut);}
+  .sig{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:8px;margin-top:7px;}
+  .sig.buy{background:#10341f;color:#48d39a;border:1px solid #1d6b46;}
+  .sig.fair{background:#33290a;color:var(--goldlt);border:1px solid #6b5410;}
+  .sig.exp{background:#3a1410;color:#e8857a;border:1px solid #7a2a22;}
+  .sig.wch{background:#11304a;color:#7fd4ff;border:1px solid #235;}
+  .meta{display:flex;gap:13px;margin-top:7px;font-size:11.5px;color:var(--mut);flex-wrap:wrap;}.meta b{color:var(--tx);}
+  .bar{position:relative;height:26px;margin:10px 0 2px;}
+  .bar .track{position:absolute;top:11px;left:0;right:0;height:5px;border-radius:3px;background:linear-gradient(90deg,var(--down) 0 38%,var(--gold) 38% 70%,var(--up) 70% 100%);opacity:.5;}
+  .bar .tick{position:absolute;top:5px;width:1px;height:16px;background:var(--mut);}
+  .bar .lab{position:absolute;top:-3px;font-size:9px;color:var(--mut);transform:translateX(-50%);}
+  .bar .now{position:absolute;top:5px;width:13px;height:13px;border-radius:50%;background:#fff;border:3px solid var(--mid);transform:translateX(-50%);}
+  .tools{display:flex;gap:6px;margin-top:10px;}
+  .tools button{flex:1;text-align:center;padding:8px 4px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--line);background:#1d2c44;color:var(--tx);}
+  .tools .ord{background:var(--gold);color:#1a1407;border:none;}
+  .tools .line{background:var(--lineg);color:#fff;border:none;}
+  .tools .rm{flex:none;background:#2a1414;color:#e8857a;border-color:#5a2a2a;padding:8px 11px;}
+  .panel{margin-top:10px;border-top:1px solid var(--line);padding-top:9px;display:none;}
+  .panel.open{display:block;}
+  .ob{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;}
+  .ob .col b{display:block;color:var(--mut);font-size:10.5px;margin-bottom:3px;font-weight:600;}
+  .ob .lv{display:flex;justify-content:space-between;padding:2px 6px;border-radius:4px;font-variant-numeric:tabular-nums;}
+  .ob .bid{background:rgba(224,64,58,.08);}.ob .ask{background:rgba(34,160,107,.08);}
+  .ob .vol{color:var(--mut);}
+  .obx{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mut);margin-top:8px;}
+  .news a{display:block;color:var(--tx);text-decoration:none;font-size:12.5px;padding:7px 0;border-bottom:1px dashed #22344f;line-height:1.4;}
+  .news a small{color:var(--mut);font-size:10.5px;}
+  .news .ld{color:var(--mut);font-size:12px;padding:8px 0;}
+  .news .ylink{display:block;background:#5a009e;background:linear-gradient(90deg,#7B1FA2,#512DA8);color:#fff;
+    text-align:center;font-weight:700;padding:11px;border-radius:10px;border:none;margin-bottom:6px;}
+  footer{text-align:center;color:var(--mut);font-size:10.5px;padding:16px 16px 28px;line-height:1.6;}
+  .mask{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:50;padding:18px;}
+  .mask.show{display:flex;}
+  .modal{background:var(--card);border:1px solid var(--gold);border-radius:16px;max-width:380px;width:100%;padding:17px;max-height:84vh;overflow:auto;}
+  .modal h3{margin:0 0 8px;color:var(--gold);font-size:16px;}
+  .ticket{background:#0e1726;border:1px solid var(--line);border-radius:10px;padding:11px;margin:10px 0;font-size:13.5px;}
+  .ticket div{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #22344f;}.ticket div:last-child{border:none;}
+  .warn{background:#3a1410;border:1px solid #7a2a22;color:#e8a79e;font-size:11px;padding:8px;border-radius:8px;line-height:1.5;}
+  .modal textarea{width:100%;height:88px;margin:10px 0;background:#0e1726;color:var(--tx);border:1px solid var(--line);border-radius:8px;font-size:10px;padding:8px;font-family:monospace;}
+  .mbtns{display:flex;gap:8px;margin-top:13px;}
+  .mbtns a,.mbtns button{flex:1;text-align:center;padding:11px;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none;border:none;cursor:pointer;}
+  .mbtns .go{background:var(--gold);color:#1a1407;}.mbtns .cancel{background:#22344f;color:var(--tx);}
+</style>
+</head>
+<body>
+<header>
+  <div class="htop">
+    <div class="brand"><span class="logo"><i style="height:7px"></i><i style="height:11px"></i><i style="height:15px"></i></span><b>台股高ROE</b> 行動看板</div>
+    <button class="btn g" style="flex:none;padding:7px 12px" onclick="refresh(true)">↻ 更新</button>
+  </div>
+  <div class="status"><span><span class="dot" id="mdot"></span> <span id="mstat">載入中…</span></span><span id="upd">—</span></div>
+  <div class="ctrls">
+    <div class="btn" id="alertBtn" onclick="toggleAlert()">🔔 提醒:關</div>
+    <div class="btn" id="pushBtn" onclick="enablePush()">📲 推播:關</div>
+    <div class="btn on" id="autoBtn" onclick="toggleAuto()">⏱ 自動:開</div>
+  </div>
+  <div class="addbar">
+    <input id="addInput" inputmode="numeric" placeholder="輸入股票代號加入自選(如 2317)" onkeydown="if(event.key==='Enter')addStock()">
+    <button onclick="addStock()">＋加入</button>
+  </div>
+</header>
+
+<div class="disc">⚠️ 報價/五檔來自證交所公開資料、經第三方代理,<b>可能延遲、盤後為前收</b>。本頁<b>不自動下單</b>;下單由你在元大App以憑證親自確認。新聞來自 Google 新聞。非投資建議。</div>
+
+<div class="wrap">
+  <div class="filterrow" id="filters"></div>
+  <div id="list"></div>
+</div>
+
+<footer>
+  資料:證交所TWSE/TPEx即時 ｜ 估值(便宜/合理價)為歷史本益比/淨值比/殖利率推算 ｜ ROE近15年均、IRR為20年含配股<br>
+  <b>本工具為數據彙整與下單輔助,非投資建議,盈虧自負。</b>
+</footer>
+
+<!-- 下單 modal -->
+<div class="mask" id="omask"><div class="modal">
+  <h3 id="oTitle">下單確認</h3>
+  <div style="font-size:12px;color:var(--mut)">請於元大證券App以憑證登入,<b style="color:var(--gold)">親自核對與確認</b>:</div>
+  <div class="ticket" id="oTicket"></div>
+  <div class="warn">本頁無法、也不會自動送出委託。價格瞬息萬變,請自行確認後再送出。</div>
+  <div class="mbtns"><a class="go" id="oGo" href="#" target="_blank" rel="noopener">📲 開啟元大下單</a><button class="cancel" onclick="closeM('omask')">取消</button></div>
+</div></div>
+<!-- 新聞 modal -->
+<div class="mask" id="nmask"><div class="modal">
+  <h3 id="nTitle">新聞</h3>
+  <div class="news" id="nBody"><div class="ld">載入中…</div></div>
+  <div class="mbtns"><button class="cancel" onclick="closeM('nmask')">關閉</button></div>
+</div></div>
+<!-- 推播 modal -->
+<div class="mask" id="pmask"><div class="modal">
+  <h3>📲 手機推播設定</h3>
+  <div style="font-size:12.5px;color:var(--mut);line-height:1.55">已在本機訂閱推播。要做到「<b style="color:var(--gold)">關閉App也能收到</b>」,請把下面訂閱碼貼到你 GitHub repo 的 <b style="color:var(--gold)">subscriptions.json</b>(陣列 [] 內),雲端到價時就會推播。</div>
+  <textarea id="subText" readonly></textarea>
+  <div class="warn">iPhone 需先「加入主畫面」並從主畫面圖示開啟本App才能收推播(iOS 16.4+)。Android/桌面 Chrome 直接支援。</div>
+  <div class="mbtns"><button class="go" onclick="copySub()">📋 複製訂閱碼</button><button class="cancel" onclick="closeM('pmask')">關閉</button></div>
+</div></div>
+
+<script>
+// ===== 精選分析數據(20年全市場掃描) =====
+const ANALYZED=[
+ {rank:1,code:"5904",name:"寶雅",mkt:"otc",roe:38.5,irr:26.2,cheap:386,fair:556,close:582,grp:"top"},
+ {rank:2,code:"2707",name:"晶華",mkt:"tse",roe:33.6,irr:23.7,cheap:158,fair:231,close:178.5,grp:"top"},
+ {rank:3,code:"2912",name:"統一超",mkt:"tse",roe:31.4,irr:12.6,cheap:262,fair:296,close:222,grp:"top"},
+ {rank:4,code:"8083",name:"瑞穎",mkt:"otc",roe:28.6,irr:18.7,cheap:151,fair:172,close:171,grp:"top"},
+ {rank:5,code:"3034",name:"聯詠",mkt:"tse",roe:27.8,irr:9.1,cheap:306,fair:390,close:473,grp:"top"},
+ {rank:6,code:"9910",name:"豐泰",mkt:"tse",roe:27.5,irr:14.3,cheap:70,fair:125,close:78.5,grp:"top"},
+ {rank:7,code:"5903",name:"全家",mkt:"otc",roe:26.5,irr:11.5,cheap:221,fair:277,close:188.5,grp:"top"},
+ {rank:8,code:"1580",name:"新麥",mkt:"otc",roe:26.0,irr:23.4,cheap:132,fair:154,close:126.5,grp:"top"},
+ {rank:9,code:"1476",name:"儒鴻",mkt:"tse",roe:25.9,irr:29.0,cheap:360,fair:504,close:337.5,grp:"top"},
+ {rank:10,code:"2330",name:"台積電",mkt:"tse",roe:25.9,irr:21.9,cheap:762,fair:884,close:2295,grp:"top"},
+ {code:"5274",name:"信驊",mkt:"otc",roe:38.8,irr:52.3,cheap:1424,fair:2194,close:17525,grp:"star"},
+ {code:"5287",name:"數字",mkt:"otc",roe:34.3,irr:6.4,cheap:208,fair:233,close:146.5,grp:"star"},
+ {code:"8446",name:"華研",mkt:"otc",roe:27.9,irr:15.7,cheap:92,fair:115,close:89.6,grp:"star"},
+];
+ANALYZED.forEach(d=>{d.ch=`${d.mkt}_${d.code}.tw`;d.price=d.close;d.live=false;});
+let WATCH=JSON.parse(localStorage.getItem('twroe_watch')||'[]');
+WATCH.forEach(d=>{d.grp="watch";d.ch=`${d.mkt}_${d.code}.tw`;d.price=d.price||0;});
+const all=()=>ANALYZED.concat(WATCH);
+const byCode=c=>all().find(s=>s.code===c);
+
+let filter="all",autoOn=true,alertOn=false,timer=null,alerted={},open5={};
+const $=s=>document.querySelector(s);
+function marketOpen(){const n=new Date(),d=n.getDay(),t=n.getHours()*60+n.getMinutes();return d>=1&&d<=5&&t>=540&&t<=810;}
+function fmtT(){return new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+function cls(chg){return chg>0?'up':chg<0?'down':'flat';}
+function arrow(chg){return chg>0?'▲':chg<0?'▼':'—';}
+
+function signal(d){
+  if(d.cheap==null){
+    if(d.valuing)return{cls:"wch",txt:"⏳ 估值計算中…"};
+    if(d.valFail)return{cls:"wch",txt:"⭐ 自選 · 無估值資料"};
+    return{cls:"wch",txt:"⭐ 自選"};
+  }
+  if(d.price<=d.cheap) return {cls:"buy",txt:"🟢 便宜 · 可分批買進"};
+  if(d.price<=d.fair) return {cls:"fair",txt:"🟡 合理區間"};
+  return {cls:"exp",txt:"🔴 偏貴 · 等回檔"};
+}
+function posPct(d){const lo=d.cheap*0.8,c=d.cheap,f=d.fair,hi=d.fair*1.25;let p;
+  if(d.price<=c)p=(d.price-lo)/(c-lo)*38;else if(d.price<=f)p=38+(d.price-c)/(f-c)*32;else p=70+(d.price-f)/(hi-f)*30;
+  return Math.max(2,Math.min(98,p));}
+function lvls(s){return (s||'').split('_').filter(x=>x!=='');}
+
+function render(){
+  const list=$("#list");list.innerHTML="";
+  const groups=[["top","📊 高ROE 長青前10"],["star","✨ 注目:未滿15年超高ROE"],["watch","⭐ 我的自選股"]];
+  const show=d=>{
+    if(filter==="buy")return d.grp!=="watch"&&d.price<=d.cheap;
+    if(filter==="watch")return d.grp==="watch";
+    if(filter==="top")return d.grp==="top";
+    if(filter==="star")return d.grp==="star";
+    return true;};
+  groups.forEach(([g,title])=>{
+    const arr=all().filter(d=>d.grp===g&&show(d));
+    if(!arr.length)return;
+    if(filter==="all"){const h=document.createElement("div");h.className="sec";h.textContent=title;list.appendChild(h);}
+    arr.forEach(d=>list.appendChild(cardEl(d)));
+  });
+  if(!list.children.length)list.innerHTML='<div style="text-align:center;color:var(--mut);padding:30px">此分類暫無股票</div>';
+}
+function cardEl(d){
+  const chg=(d.price&&d.prev)?d.price-d.prev:0, pct=d.prev?chg/d.prev*100:0, c=cls(chg);
+  const s=signal(d), card=document.createElement("div");card.className="card";
+  let body=`<div class="crow"><div>
+      <div class="name">${d.name}<small>${d.code}</small>
+        <span class="badge">${d.mkt==='tse'?'上市':'上櫃'}</span>
+        ${d.grp==='watch'?'<span class="badge w">自選</span>':d.grp==='star'?'<span class="badge s">注目</span>':`<span class="badge">#${d.rank}</span>`}</div>
+      <div class="sig ${s.cls}">${s.txt}</div></div>
+    <div class="px"><div class="v ${c}">${d.price?d.price.toLocaleString('en',{maximumFractionDigits:2}):'—'}</div>
+      <div class="chg ${c}">${arrow(chg)} ${Math.abs(chg).toFixed(2)} (${pct>=0?'+':''}${pct.toFixed(2)}%)</div>
+      <div class="live ${d.live?'on':''}">${d.live?'● 即時':'前收'}</div></div></div>`;
+  if(d.cheap!=null){
+    const cP=38,fP=70,pos=posPct(d);
+    const dp=((d.price-d.cheap)/d.cheap*100);
+    const m2=d.grp!=='watch'
+      ?`<span>平均ROE <b>${d.roe}%</b></span><span>20年含息IRR <b>${d.irr}%</b></span>`
+      :`<span>現ROE <b>${d.roe}%</b></span><span>本益比 <b>${d.per}</b></span><span>淨值比 <b>${d.pbr}</b></span><span>近4季EPS <b>${d.eps}</b></span><span>殖利率 <b>${d.dyield}%</b></span>`;
+    body+=`<div class="bar"><div class="track"></div>
+      <div class="tick" style="left:${cP}%"></div><div class="lab" style="left:${cP}%">便宜 ${d.cheap}</div>
+      <div class="tick" style="left:${fP}%"></div><div class="lab" style="left:${fP}%">合理 ${d.fair}</div>
+      <div class="now" style="left:${pos}%"></div></div>
+      <div class="meta"><span>${d.price<=d.cheap?'低於便宜價':'距便宜價'} ${dp>=0?'+':''}${dp.toFixed(1)}%</span>${m2}</div>`;
+  }else{
+    body+=`<div class="meta"><span>開 <b>${d.o||'—'}</b></span><span>高 <b>${d.h||'—'}</b></span><span>低 <b>${d.l||'—'}</b></span><span>量 <b>${d.vol||'—'}</b>張</span></div>`;
+  }
+  body+=`<div class="tools">
+      <button onclick="toggle5('${d.code}')">📋 五檔</button>
+      <button onclick="openNews('${d.code}')">📰 新聞</button>
+      <button class="line" onclick="shareLine('${d.code}')">💬 LINE</button>
+      ${d.grp==='watch'?`<button class="rm" onclick="rmStock('${d.code}')">✕</button>`:`<button class="ord" onclick="openOrder('${d.code}')">📲 下單</button>`}
+    </div>
+    <div class="panel ${open5[d.code]?'open':''}" id="p5_${d.code}">${order5(d)}</div>`;
+  card.innerHTML=body;return card;
+}
+function order5(d){
+  const bp=lvls(d.bid),bv=lvls(d.bidv),ap=lvls(d.ask),av=lvls(d.askv);
+  if(!bp.length&&!ap.length)return '<div style="color:var(--mut);font-size:12px;text-align:center;padding:6px">盤後/暫無五檔資料</div>';
+  const fp=x=>x?(+x).toLocaleString('en',{maximumFractionDigits:2}):'';
+  let rows='';for(let i=0;i<5;i++){
+    rows+=`<div class="lv bid"><span class="vol">${bv[i]||''}</span><span class="${d.prev&&+bp[i]>d.prev?'up':d.prev&&+bp[i]<d.prev?'down':''}">${fp(bp[i])}</span></div>`;}
+  let rows2='';for(let i=0;i<5;i++){
+    rows2+=`<div class="lv ask"><span class="${d.prev&&+ap[i]>d.prev?'up':d.prev&&+ap[i]<d.prev?'down':''}">${fp(ap[i])}</span><span class="vol">${av[i]||''}</span></div>`;}
+  return `<div class="ob"><div class="col"><b>委買 量 / 價</b>${rows}</div><div class="col"><b>委賣 價 / 量</b>${rows2}</div></div>
+    <div class="obx"><span>昨收 ${d.prev||'—'}</span><span>成交量 ${d.vol||'—'} 張</span></div>`;
+}
+function toggle5(code){open5[code]=!open5[code];const p=$("#p5_"+code);if(p){p.classList.toggle('open');p.innerHTML=order5(byCode(code));}}
+
+// ===== 即時報價(TWSE MIS) =====
+const cdt=u=>`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`;
+const aor=u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`;
+const cor=u=>`https://corsproxy.io/?url=${encodeURIComponent(u)}`;
+const PROXY_J=[cdt,aor];        // JSON:報價/FinMind基本面
+const PROXY_T=[aor,cor,cdt];    // 文字:新聞RSS
+async function fetchVia(proxies,target,mode){
+  for(const p of proxies){
+    const ctl=new AbortController(),tid=setTimeout(()=>ctl.abort(),8000);
+    try{
+      const r=await fetch(p(target),{cache:'no-store',signal:ctl.signal});clearTimeout(tid);
+      if(!r.ok)continue;let t=await r.text();
+      if(mode==='text'){try{const o=JSON.parse(t);if(o&&o.contents)t=o.contents;}catch(e){}if(t&&t.length>80)return t;}
+      else{const j=JSON.parse(t);if(mode==='mis'&&j&&j.msgArray)return j;if(mode==='fin'&&j&&j.data)return j;}
+    }catch(e){clearTimeout(tid);}
+  }
+  return null;
+}
+// ===== 自選股估值(同分析法: 便宜價=EPS×歷史PER低標 與 淨值×歷史PBR低標) =====
+const median=a=>{a=a.slice().sort((x,y)=>x-y);const m=a.length>>1;return a.length%2?a[m]:(a[m-1]+a[m])/2;};
+const pctile=(a,q)=>{a=a.slice().sort((x,y)=>x-y);const k=(a.length-1)*q,f=Math.floor(k);return a[f]+(a[Math.min(f+1,a.length-1)]-a[f])*(k-f);};
+async function loadVal(d,force){
+  if((d.cheap!=null&&!force)||d.valuing)return;
+  d.valuing=true;render();
+  const fm=`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPER&data_id=${d.code}&start_date=2020-01-01&end_date=2026-12-31`;
+  const j=await fetchVia(PROXY_J,fm,'fin');d.valuing=false;
+  const rows=(j&&j.data)||[];
+  const pers=rows.filter(x=>x.PER>0).map(x=>x.PER),pbrs=rows.filter(x=>x.PBR>0).map(x=>x.PBR);
+  const last=rows[rows.length-1];
+  if(!last||!(last.PER>0)||!(last.PBR>0)||pers.length<30){d.valFail=true;render();return;}
+  const ref=d.prev||d.price||0;                 // 以昨收為基準(與FinMind PER同基準)
+  if(!ref){render();return;}                    // 報價未到,稍後重試
+  const eps=ref/last.PER,bvps=ref/last.PBR;     // 近4季EPS、每股淨值
+  d.per=+last.PER.toFixed(2);d.pbr=+last.PBR.toFixed(2);d.dyield=last.dividend_yield||0;
+  d.eps=+eps.toFixed(2);
+  d.roe=+(last.PBR/last.PER*100).toFixed(1);
+  // 三法:① 本益比 ② 股價淨值比 ③ 殖利率
+  const cheapArr=[eps*pctile(pers,0.2), bvps*pctile(pbrs,0.2)];
+  const fairArr =[eps*pctile(pers,0.5), bvps*pctile(pbrs,0.5)];
+  const yields=rows.filter(x=>x.dividend_yield>0).map(x=>x.dividend_yield);
+  if(d.dyield>0 && yields.length>=30){
+    const annDiv=ref*d.dyield/100;              // 近一年現金股利
+    const yHi=pctile(yields,0.8), yMid=pctile(yields,0.5);   // 高殖利率=便宜
+    if(yHi>0) cheapArr.push(annDiv/(yHi/100));
+    if(yMid>0) fairArr.push(annDiv/(yMid/100));
+    d.annDiv=+annDiv.toFixed(2);
+  }
+  d.cheap=+median(cheapArr).toFixed(1);
+  d.fair=+median(fairArr).toFixed(1);
+  d.valDate=new Date().toISOString().slice(0,10);d.valFail=false;
+  saveWatch();render();
+}
+async function refresh(manual){
+  setStatus();
+  const arr=all();if(!arr.length)return;
+  const exch=arr.map(d=>d.ch).join('|');
+  const url=`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${exch}&json=1&delay=0&_=${Date.now()}`;
+  const j=await fetchVia(PROXY_J,url,'mis');
+  if(j){const map={};(j.msgArray||[]).forEach(m=>map[m.c]=m);
+    arr.forEach(d=>{const m=map[d.code];if(!m)return;
+      let px=parseFloat(m.z);const traded=m.z&&m.z!=='-';
+      if(!traded){const b=(m.b||'').split('_')[0];px=parseFloat(b)||parseFloat(m.y);}
+      if(!isNaN(px)){d.price=px;d.live=traded;}
+      d.prev=parseFloat(m.y)||d.prev;d.o=m.o&&m.o!=='-'?m.o:d.o;d.h=m.h&&m.h!=='-'?m.h:d.h;d.l=m.l&&m.l!=='-'?m.l:d.l;
+      d.vol=m.v||d.vol;d.bid=m.b;d.bidv=m.g;d.ask=m.a;d.askv=m.f;if(m.n)d.name=m.n;});
+    $("#upd").textContent="更新 "+fmtT();
+  }else $("#upd").textContent="即時報價暫不可用("+fmtT()+")";
+  render();checkAlerts();
+  WATCH.forEach(d=>{if(d.cheap==null&&!d.valuing&&!d.valFail&&(d.prev||d.price))loadVal(d);});
+}
+function setStatus(){const o=marketOpen();$("#mdot").className="dot "+(o?'open':'closed');$("#mstat").textContent=o?"盤中交易時段":"非交易時段(顯示前收/最後價)";}
+
+// ===== 自選股 =====
+async function addStock(){
+  const inp=$("#addInput"),code=(inp.value||'').trim();
+  if(!/^\d{4,6}[A-Z]?$/.test(code)){alert("請輸入正確股票代號");return;}
+  if(byCode(code)){alert("已在清單中");inp.value='';return;}
+  inp.value='查詢中…';inp.disabled=true;
+  const url=`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_${code}.tw|otc_${code}.tw&json=1&_=${Date.now()}`;
+  const j=await fetchVia(PROXY_J,url,'mis');inp.disabled=false;inp.value='';
+  const m=j&&(j.msgArray||[]).find(x=>x.c===code);
+  if(!m){alert("查無此代號(可能非上市櫃或暫無資料)");return;}
+  const ns={code,name:m.n||code,mkt:m.ex||'tse',ch:`${m.ex||'tse'}_${code}.tw`,grp:"watch"};
+  WATCH.push(ns);saveWatch();await refresh();loadVal(ns);
+}
+function rmStock(code){WATCH=WATCH.filter(s=>s.code!==code);saveWatch();render();}
+function saveWatch(){localStorage.setItem('twroe_watch',JSON.stringify(WATCH.map(s=>({code:s.code,name:s.name,mkt:s.mkt,cheap:s.cheap,fair:s.fair,roe:s.roe,per:s.per,pbr:s.pbr,dyield:s.dyield,valDate:s.valDate}))));}
+
+// ===== 新聞(Google News RSS) =====
+async function openNews(code){
+  const d=byCode(code);const suf=d.mkt==='otc'?'TWO':'TW';
+  const yurl=`https://tw.stock.yahoo.com/quote/${code}.${suf}/news`;
+  $("#nTitle").textContent=`📰 ${d.name} ${d.code} 新聞`;
+  $("#nBody").innerHTML=`<a class="ylink" href="${yurl}" target="_blank" rel="noopener">📲 在 Yahoo 股市看完整新聞 →</a><div id="nInline" class="ld">載入即時摘要中…</div>`;
+  $("#nmask").classList.add("show");
+  const q=encodeURIComponent(d.name+" 股價");
+  const rss=`https://news.google.com/rss/search?q=${q}&hl=zh-TW&gl=TW&ceid=TW:zh-Hant`;
+  const x=await fetchVia(PROXY_T,rss,'text');
+  const box=$("#nInline");if(!box)return;
+  if(!x){box.innerHTML='即時摘要載入失敗,請點上方按鈕看完整新聞。';return;}
+  try{
+    const items=[...new DOMParser().parseFromString(x,"text/xml").querySelectorAll("item")].slice(0,8);
+    if(!items.length){box.innerHTML='查無即時摘要,請點上方按鈕。';return;}
+    box.className='';box.innerHTML=items.map(it=>{
+      const t=it.querySelector("title")?.textContent||'';
+      const link=it.querySelector("link")?.textContent||'#';
+      const dt=it.querySelector("pubDate")?.textContent||'';
+      return `<a href="${link}" target="_blank" rel="noopener">${t}<br><small>${dt?timeAgo(new Date(dt)):''}</small></a>`;
+    }).join('');
+  }catch(e){box.innerHTML='摘要解析失敗,請點上方按鈕。';}
+}
+function timeAgo(d){const m=Math.floor((Date.now()-d)/60000);if(m<60)return m+'分鐘前';const h=Math.floor(m/60);if(h<24)return h+'小時前';return Math.floor(h/24)+'天前';}
+
+// ===== 分享到 LINE =====
+function shareLine(code){
+  const d=byCode(code),chg=(d.price&&d.prev)?d.price-d.prev:0,pct=d.prev?chg/d.prev*100:0;
+  let txt=`【${d.name} ${d.code}】現價 ${d.price} ${arrow(chg)}${Math.abs(chg).toFixed(2)} (${pct>=0?'+':''}${pct.toFixed(2)}%)`;
+  if(d.grp!=='watch'){const s=signal(d);txt+=`\n${s.txt.replace(/🟢|🟡|🔴/,'').trim()}(便宜${d.cheap}/合理${d.fair})\nROE ${d.roe}% ｜ 20年IRR ${d.irr}%`;}
+  txt+=`\n— 台股高ROE行動看板`;
+  window.open(`https://line.me/R/share?text=${encodeURIComponent(txt)}`,'_blank');
+}
+
+// ===== Web Push 手機推播(關App也能收) =====
+const VAPID_PUBLIC="BF2NN7_v0wukdP0rGHRYxeJnAjVWKSjshsGjWkQHWPGeZ-OXHh9CdDx90X3YYMk7x6MK9M1gQwg_Xk8jaWvOgHc";
+function urlB64(b){const p='='.repeat((4-b.length%4)%4);const s=(b+p).replace(/-/g,'+').replace(/_/g,'/');return Uint8Array.from([...atob(s)].map(c=>c.charCodeAt(0)));}
+async function enablePush(){
+  if(!('serviceWorker'in navigator)||!('PushManager'in window)){alert('此裝置/瀏覽器不支援推播。\niPhone 請先把本App「加入主畫面」,並從主畫面圖示開啟。');return;}
+  try{
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){alert('未授權通知,無法推播。');return;}
+    const reg=await navigator.serviceWorker.ready;
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub) sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64(VAPID_PUBLIC)});
+    const j=JSON.stringify(sub);localStorage.setItem('twroe_push',j);pushState(true);
+    $("#subText").value=j;$("#pmask").classList.add("show");
+  }catch(e){alert('開啟推播失敗:'+e);}
+}
+function pushState(on){$("#pushBtn").className="btn"+(on?" on":"");$("#pushBtn").textContent="📲 推播:"+(on?"開":"關");}
+function copySub(){const t=$("#subText");t.select();try{navigator.clipboard.writeText(t.value);}catch(e){document.execCommand('copy');}alert('已複製!貼到 GitHub repo 的 subscriptions.json 陣列 [] 內,push 上去即可。');}
+
+// ===== 到價提醒 =====
+function toggleAlert(){if(!alertOn){if('Notification'in window&&Notification.permission!=='granted')Notification.requestPermission();alertOn=true;}else alertOn=false;
+  $("#alertBtn").className="btn"+(alertOn?" on":"");$("#alertBtn").textContent="🔔 提醒:"+(alertOn?"開":"關");}
+function checkAlerts(){if(!alertOn)return;ANALYZED.forEach(d=>{
+  if(d.price<=d.cheap&&!alerted[d.code]){alerted[d.code]=true;const msg=`${d.name}(${d.code}) 現價 ${d.price} ≤ 便宜價 ${d.cheap},可考慮分批買進`;
+    if('Notification'in window&&Notification.permission==='granted')new Notification("🟢 到價買訊",{body:msg});}
+  if(d.price>d.cheap)alerted[d.code]=false;});}
+
+function toggleAuto(){autoOn=!autoOn;$("#autoBtn").className="btn"+(autoOn?" on":"");$("#autoBtn").textContent="⏱ 自動:"+(autoOn?"開":"關");loop();}
+function loop(){clearInterval(timer);if(autoOn)timer=setInterval(()=>{if(marketOpen())refresh();else setStatus();},12000);}
+
+// ===== 下單輔助 =====
+function openOrder(code){const d=byCode(code);$("#oTitle").textContent=`下單確認 — ${d.name} (${d.code})`;
+  const limit=Math.min(d.price,d.cheap||d.price);
+  $("#oTicket").innerHTML=`<div><span>股票</span><b>${d.name} ${d.code}</b></div><div><span>現價</span><b>${d.price}</b></div>
+    ${d.cheap?`<div><span>便宜價</span><b>${d.cheap}</b></div>`:''}<div><span>建議</span><b>限價買進 ${limit}</b></div><div><span>張數</span><b>由你決定</b></div>`;
+  $("#oGo").href="https://www.yuanta.com.tw/eYuanta/securities";$("#omask").classList.add("show");}
+function closeM(id){$("#"+id).classList.remove("show");}
+['omask','nmask','pmask'].forEach(id=>$("#"+id).addEventListener("click",e=>{if(e.target.id===id)closeM(id);}));
+
+const FILTERS=[["all","全部"],["buy","🟢 可買"],["top","長青前10"],["star","注目"],["watch","⭐ 自選"]];
+function buildFilters(){const f=$("#filters");FILTERS.forEach(([k,t])=>{const c=document.createElement("div");c.className="chip"+(k==="all"?" sel":"");c.textContent=t;
+  c.onclick=()=>{filter=k;[...f.children].forEach(x=>x.classList.remove("sel"));c.classList.add("sel");render();};f.appendChild(c);});}
+
+buildFilters();setStatus();render();refresh();loop();
+if(localStorage.getItem('twroe_push'))pushState(true);
+if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
+</script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+name: 台股高ROE 到價推播
+on:
+  schedule:
+    # 每 5 分鐘,UTC 01:00–05:59(≈ 台北 09:00–13:59),週一到週五
+    - cron: '*/5 1-5 * * 1-5'
+  workflow_dispatch: {}          # 也可在 Actions 頁手動觸發測試
+permissions:
+  contents: write                # 允許把通知狀態 commit 回 repo(跨次去重)
+concurrency:
+  group: line-alert
+  cancel-in-progress: false
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: 安裝 Web Push 套件
+        run: pip install --quiet pywebpush
+      - name: 檢查到價並推播(LINE + Web Push)
+        env:
+          LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+        run: python line_alert.py
+      - name: 保存通知狀態(去重)
+        run: |
+          if [ -n "$(git status --porcelain alert_state.json)" ]; then
+            git config user.name "twroe-bot"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add alert_state.json
+            git commit -m "chore: update alert state [skip ci]"
+            git push
+          else
+            echo "狀態無變化"
+          fi

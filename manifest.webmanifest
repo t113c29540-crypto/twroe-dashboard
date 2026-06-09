@@ -1,0 +1,16 @@
+{
+  "name": "台股高ROE 行動看板",
+  "short_name": "高ROE看板",
+  "description": "台股20年高ROE長青股:即時報價、五檔、新聞、買訊、自選股估值",
+  "lang": "zh-Hant",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0E1726",
+  "theme_color": "#14233A",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}
