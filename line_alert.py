@@ -47,6 +47,21 @@ def get_prices():
 def yahoo(code, mkt):
     return f"https://tw.stock.yahoo.com/quote/{code}.{'TWO' if mkt=='otc' else 'TW'}/news"
 
+import re, html as _html
+def get_news(name):
+    """抓該股一則最新新聞(標題, 連結)。失敗回 (None, None)。"""
+    try:
+        q = urllib.parse.quote(name + " 股價")
+        rss = f"https://news.google.com/rss/search?q={q}&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
+        x = http_get(rss, timeout=12)
+        m = re.search(r"<item>.*?<title>(.*?)</title>.*?<link>(.*?)</link>", x, re.S)
+        if m:
+            title = _html.unescape(re.sub(r"<[^>]+>", "", m.group(1))).strip()
+            return title[:60], m.group(2).strip()
+    except Exception as e:
+        print("news err:", e)
+    return None, None
+
 def push(text):
     if not TOKEN or not USER_ID:
         print("[未設定 LINE_TOKEN/USER_ID] 訊息:\n"+text); return
@@ -102,10 +117,12 @@ def check():
         below = px <= cheap
         if below and code not in st["alerted"]:
             st["alerted"].append(code); changed = True
+            nt, nl = get_news(name)
+            news_line = f"\n📰 {nt}\n{nl}" if nt else f"\n📰 {yahoo(code,mkt)}"
             push(f"🟢 到價買訊\n{name}({code}) 現價 {px} ≤ 便宜價 {cheap}\n"
-                 f"可考慮分批買進(請自行確認基本面與風險)\n📰 {yahoo(code,mkt)}\n— 台股高ROE看板")
-            web_push("🟢 台股高ROE 到價買訊",
-                     f"{name}({code}) 現價 {px} ≤ 便宜價 {cheap},可分批買進", yahoo(code, mkt))
+                 f"可考慮分批買進(請自行確認基本面與風險){news_line}\n— 台股高ROE看板")
+            wp_body = f"{name}({code}) {px} ≤ 便宜價 {cheap},可分批買進" + (f"\n📰 {nt}" if nt else "")
+            web_push("🟢 台股高ROE 到價買訊", wp_body, nl or yahoo(code, mkt))
             print(f"ALERT {name}{code} {px}<= {cheap}")
         else:
             print(f"  {name}{code}: {px} (便宜價 {cheap}){' 已通知' if code in st['alerted'] else ''}")

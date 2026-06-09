@@ -135,10 +135,14 @@
 <!-- 推播 modal -->
 <div class="mask" id="pmask"><div class="modal">
   <h3>📲 手機推播設定</h3>
-  <div style="font-size:12.5px;color:var(--mut);line-height:1.55">已在本機訂閱推播。要做到「<b style="color:var(--gold)">關閉App也能收到</b>」,請把下面訂閱碼貼到你 GitHub repo 的 <b style="color:var(--gold)">subscriptions.json</b>(陣列 [] 內),雲端到價時就會推播。</div>
+  <div style="font-size:12.5px;color:var(--mut);line-height:1.55">已在本機訂閱。要「<b style="color:var(--gold)">關閉App也能收到</b>」,按下方〈一鍵提交到雲端〉→ 到 GitHub 按 <b>Submit</b> 即自動登錄;或按〈複製〉手動貼到 <b style="color:var(--gold)">subscriptions.json</b>。</div>
   <textarea id="subText" readonly></textarea>
-  <div class="warn">iPhone 需先「加入主畫面」並從主畫面圖示開啟本App才能收推播(iOS 16.4+)。Android/桌面 Chrome 直接支援。</div>
-  <div class="mbtns"><button class="go" onclick="copySub()">📋 複製訂閱碼</button><button class="cancel" onclick="closeM('pmask')">關閉</button></div>
+  <div class="warn">iPhone 需先「加入主畫面」並從桌面圖示開啟本App才能收推播(iOS 16.4+)。Android/桌面 Chrome 直接支援。</div>
+  <div class="mbtns" style="flex-wrap:wrap">
+    <button class="go" onclick="submitSubCloud()">📤 一鍵提交到雲端</button>
+    <button class="cancel" onclick="copySub()">📋 複製</button>
+    <button class="cancel" onclick="closeM('pmask')">關閉</button>
+  </div>
 </div></div>
 
 <script>
@@ -389,6 +393,14 @@ async function enablePush(){
 }
 function pushState(on){$("#pushBtn").className="btn"+(on?" on":"");$("#pushBtn").textContent="📲 推播:"+(on?"開":"關");}
 function copySub(){const t=$("#subText");t.select();try{navigator.clipboard.writeText(t.value);}catch(e){document.execCommand('copy');}alert('已複製!貼到 GitHub repo 的 subscriptions.json 陣列 [] 內,push 上去即可。');}
+function repoInfo(){const h=location.hostname,parts=location.pathname.split('/').filter(Boolean);
+  if(h.endsWith('github.io'))return{owner:h.split('.')[0],repo:parts[0]||''};return null;}
+function submitSubCloud(){
+  const info=repoInfo(),sub=$("#subText").value;
+  if(!info||!info.repo){alert('需從 GitHub Pages 網址開啟本App才能一鍵提交。\n否則請按「複製」,手動貼到 repo 的 subscriptions.json。');return;}
+  const body=encodeURIComponent('推播訂閱(系統自動處理,請勿編輯)\n\n```json\n'+sub+'\n```');
+  window.open(`https://github.com/${info.owner}/${info.repo}/issues/new?title=push-subscription&body=${body}`,'_blank');
+}
 
 // ===== 到價提醒 =====
 function toggleAlert(){if(!alertOn){if('Notification'in window&&Notification.permission!=='granted')Notification.requestPermission();alertOn=true;}else alertOn=false;

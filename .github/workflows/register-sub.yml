@@ -1,0 +1,33 @@
+name: 註冊推播訂閱
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: write
+  issues: write
+jobs:
+  register:
+    # 只處理標題含 push-subscription 的 issue
+    if: contains(github.event.issue.title, 'push-subscription')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 解析並寫入訂閱
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: python register_sub.py
+      - name: 提交 subscriptions.json
+        run: |
+          if [ -n "$(git status --porcelain subscriptions.json)" ]; then
+            git config user.name "twroe-bot"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add subscriptions.json
+            git commit -m "feat: 新增推播訂閱 [skip ci]"
+            git push
+          else
+            echo "訂閱已存在或無變化"
+          fi
+      - name: 關閉 issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue close ${{ github.event.issue.number }} --comment "✅ 已登錄你的推播訂閱,之後到價會自動通知。此 issue 自動關閉。"

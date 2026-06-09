@@ -59,9 +59,10 @@ _deploy/
 2. repo → Settings → Secrets and variables → Actions,再加兩個 secret:
    - `VAPID_PRIVATE`  = 貼上 `VAPID_PRIVATE.pem` 全文(含 `-----BEGIN/END-----` 行)
    - `VAPID_SUBJECT`  = `mailto:你的Email`
-3. 用手機開看板(**iPhone 需先「加入主畫面」並從桌面圖示開啟**)→ 按「📲 推播」→ 允許通知 → 複製訂閱碼
-4. 把訂閱碼貼進 repo 的 `subscriptions.json` 陣列 `[]` 內(多台裝置可多筆),push 上去
-5. 之後到價,**LINE 與手機推播都會通知**(即使關閉 App)
+3. 用手機開看板(**iPhone 需先「加入主畫面」並從桌面圖示開啟**)→ 按「📲 推播」→ 允許通知
+4. 按「📤 **一鍵提交到雲端**」→ 跳到 GitHub 按 **Submit new issue** → 系統(register-sub workflow)**自動把訂閱寫入 `subscriptions.json` 並關閉 issue**(免手動貼)
+   - 備援:也可按「📋 複製」手動貼到 `subscriptions.json` 陣列 `[]` 內
+5. 之後到價,**LINE 與手機推播都會通知**(即使關閉 App),且內容含**該股新聞**
 > iOS 限制:僅「已加入主畫面的 PWA、從圖示開啟」可收 Web Push(iOS 16.4+);Android/桌面 Chrome 直接支援。
 
 ---
