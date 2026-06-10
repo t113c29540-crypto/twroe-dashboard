@@ -1,5 +1,7 @@
 # 台股高ROE 行動看板 — 雲端部署包
 
+> ✅ **已部署**:https://t113c29540-crypto.github.io/twroe-dashboard/ ｜ repo:https://github.com/t113c29540-crypto/twroe-dashboard
+
 一個 GitHub repo 同時搞定兩件事(全部**免費**):
 - **A. PWA 行動看板**(GitHub Pages,HTTPS)→ 手機「加入主畫面」變 App、可離線開啟
 - **B. LINE 到價自動推播**(GitHub Actions,7×24)→ 跌到便宜價自動推到你 LINE
