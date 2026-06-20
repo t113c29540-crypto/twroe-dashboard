@@ -270,16 +270,16 @@ function signal(d){
     if(d.valFail)return{cls:"wch",txt:"估值資料不足"};
     return{cls:"wch",txt:d.grp==='watch'?"⭐ 自選":"⏳ 估值載入中"};
   }
-  if(d.price<=d.cheap) return {cls:"buy",txt:"🟢 便宜 · 可分批買進"};
-  if(d.price<=d.fair) return {cls:"fair",txt:"🟡 合理區間"};
-  return {cls:"exp",txt:"🔴 偏貴 · 等回檔"};
+  if(d.price<=d.cheap) return {cls:"buy",txt:"🟢 估值偏低（歷史相對低檔）"};
+  if(d.price<=d.fair) return {cls:"fair",txt:"🟡 估值合理區間"};
+  return {cls:"exp",txt:"🔴 估值偏高"};
 }
 function posPct(d){const lo=d.cheap*0.8,c=d.cheap,f=d.fair,hi=d.fair*1.25;let p;
   if(d.price<=c)p=(d.price-lo)/(c-lo)*38;else if(d.price<=f)p=38+(d.price-c)/(f-c)*32;else p=70+(d.price-f)/(hi-f)*30;
   return Math.max(2,Math.min(98,p));}
 function lvls(s){return (s||'').split('_').filter(x=>x!=='');}
 
-// ===== 回測績效追蹤(讀雲端 signals_log.json,算每筆買訊至今報酬)=====
+// ===== 回測績效追蹤(讀雲端 signals_log.json,算每筆訊號至今報酬)=====
 let perfCache=null, perfTime=0;
 async function renderPerf(){
   const list=$("#list");
@@ -298,16 +298,16 @@ async function renderPerf(){
     });
     const wr=rows.filter(r=>r.ret!=null);
     const win=wr.filter(r=>r.ret>0).length, avg=wr.length?wr.reduce((a,r)=>a+r.ret,0)/wr.length:0;
-    html+=`<div class="sec">📈 歷史買訊績效 ｜ ${log.length}筆 ｜ 勝率 ${wr.length?Math.round(win/wr.length*100):0}% ｜ 平均 ${avg>=0?'+':''}${avg.toFixed(1)}%</div>`;
+    html+=`<div class="sec">📈 歷史訊號回測 ｜ ${log.length}筆 ｜ 勝率 ${wr.length?Math.round(win/wr.length*100):0}% ｜ 平均 ${avg>=0?'+':''}${avg.toFixed(1)}%</div>`;
     html+=rows.map(r=>{const c=cls(r.ret||0);return `<div class="card"><div class="crow">
       <div><div class="name">${r.name}<small>${r.code}</small></div>
       <div class="meta" style="margin-top:5px"><span>訊號日 ${r.date}</span><span>訊號價 <b>${r.price}</b></span><span>持有 ${r.days}天</span></div></div>
       <div class="px"><div class="v ${c}">${r.cur??'—'}</div><div class="chg ${c}">${r.ret!=null?(r.ret>=0?'▲ +':'▼ ')+r.ret.toFixed(1)+'%':'—'}</div></div></div></div>`;}).join('');
   }else{
-    html+=`<div class="sec">📈 歷史買訊績效</div><div style="color:var(--mut);text-align:center;padding:22px;line-height:1.6">尚無歷史買訊紀錄。<br>部署到雲端後,每次到價買訊會<b>自動記錄</b>,這裡顯示每筆進場後的報酬與勝率。</div>`;
+    html+=`<div class="sec">📈 歷史訊號回測</div><div style="color:var(--mut);text-align:center;padding:22px;line-height:1.6">尚無訊號紀錄。<br>部署到雲端後,每次「估值偏低」訊號會<b>自動記錄</b>,這裡顯示每筆訊號後的報酬與勝率（回測用途，非操作建議）。</div>`;
   }
   const now=all().filter(d=>d.grp!=='watch' && d.cheap!=null && d.price<=d.cheap);
-  html+=`<div class="sec" style="margin-top:16px">🟢 目前符合買訊 ｜ ${now.length} 檔</div>`;
+  html+=`<div class="sec" style="margin-top:16px">🟢 目前估值偏低 ｜ ${now.length} 檔</div>`;
   html+= now.length? now.map(d=>`<div class="card"><div class="crow">
       <div><div class="name">${d.name}<small>${d.code}</small></div>
       <div class="meta" style="margin-top:5px"><span>便宜價 ${d.cheap}</span><span>平均ROE ${d.aroe??d.roe}%</span>${d.irr?`<span>IRR ${d.irr}%</span>`:''}</div></div>
@@ -619,8 +619,8 @@ function submitSubCloud(){
 function toggleAlert(){if(!alertOn){if('Notification'in window&&Notification.permission!=='granted')Notification.requestPermission();alertOn=true;}else alertOn=false;
   $("#alertBtn").className="btn"+(alertOn?" on":"");$("#alertBtn").textContent="🔔 提醒:"+(alertOn?"開":"關");}
 function checkAlerts(){if(!alertOn)return;ANALYZED.forEach(d=>{
-  if(d.price<=d.cheap&&!alerted[d.code]){alerted[d.code]=true;const msg=`${d.name}(${d.code}) 現價 ${d.price} ≤ 便宜價 ${d.cheap},可考慮分批買進`;
-    if('Notification'in window&&Notification.permission==='granted')new Notification("🟢 到價買訊",{body:msg});}
+  if(d.price<=d.cheap&&!alerted[d.code]){alerted[d.code]=true;const msg=`${d.name}(${d.code}) 現價 ${d.price} ≤ 便宜價 ${d.cheap}（估值偏低·歷史相對低檔）`;
+    if('Notification'in window&&Notification.permission==='granted')new Notification("🟢 到價提醒（估值偏低）",{body:msg});}
   if(d.price>d.cheap)alerted[d.code]=false;});}
 
 function toggleAuto(){autoOn=!autoOn;$("#autoBtn").className="btn"+(autoOn?" on":"");$("#autoBtn").textContent="⏱ 自動:"+(autoOn?"開":"關");loop();}
@@ -630,12 +630,12 @@ function loop(){clearInterval(timer);if(autoOn)timer=setInterval(()=>{if(marketO
 function openOrder(code){const d=byCode(code);$("#oTitle").textContent=`下單確認 — ${d.name} (${d.code})`;
   const limit=Math.min(d.price,d.cheap||d.price);
   $("#oTicket").innerHTML=`<div><span>股票</span><b>${d.name} ${d.code}</b></div><div><span>現價</span><b>${d.price}</b></div>
-    ${d.cheap?`<div><span>便宜價</span><b>${d.cheap}</b></div>`:''}<div><span>建議</span><b>限價買進 ${limit}</b></div><div><span>張數</span><b>由你決定</b></div>`;
+    ${d.cheap?`<div><span>便宜價</span><b>${d.cheap}</b></div>`:''}<div><span>參考限價</span><b>${limit}</b></div><div><span>張數</span><b>由你決定</b></div>`;
   $("#oGo").href="https://www.yuanta.com.tw/eYuanta/securities";$("#omask").classList.add("show");}
 function closeM(id){$("#"+id).classList.remove("show");}
 ['omask','nmask','pmask','amask'].forEach(id=>$("#"+id).addEventListener("click",e=>{if(e.target.id===id)closeM(id);}));
 
-const FILTERS=[["all","全部"],["buy","🟢 可買"],["long","長青排行"],["star","注目"],["watch","⭐ 自選"],["perf","📈 績效"],["strat","🧭 策略"]];
+const FILTERS=[["all","全部"],["buy","🟢 估值偏低"],["long","長青排行"],["star","注目"],["watch","⭐ 自選"],["perf","📈 回測"],["strat","🧭 估值口徑"]];
 function buildFilters(){const f=$("#filters");FILTERS.forEach(([k,t])=>{const c=document.createElement("div");c.className="chip"+(k==="all"?" sel":"");c.textContent=t;
   c.onclick=()=>{filter=k;[...f.children].forEach(x=>x.classList.remove("sel"));c.classList.add("sel");render();};f.appendChild(c);});}
 
@@ -645,7 +645,7 @@ const SERIES={"5904":{"name":"寶雅","years":[2006,2007,2008,2009,2010,2011,201
 //  20年深度分析模組（純 SVG，無外部套件）
 //  資料：const SERIES（由 series.json 於 build 時 inline）
 //  圖表：①ROE趨勢(會計vs市場,補虧損年) ②本益比河流圖 ③殖利率河流圖
-//        ④定期定額vs單筆+MDD  ⑤個股投資策略(進場紀律/停利停損)
+//        ④定期定額vs單筆+MDD  ⑤估值位階與風險提醒(中性措辭,非投資建議)
 //  本模組為數據彙整視覺化，非投資建議。
 // ======================================================================
 const CC={gold:'#C9A227',goldlt:'#E8C75A',up:'#E0403A',down:'#22A06B',
@@ -784,20 +784,20 @@ function strategyHTML(s){
   const r=dcaCalc(s),cheap=s.cheap,fair=s.fair,close=s.close;
   let sigTxt,sigCls;
   if(cheap==null){sigTxt='估值資料不足';sigCls='wch';}
-  else if(close<=cheap){sigTxt='🟢 低於便宜價 · 可分批買進';sigCls='buy';}
-  else if(close<=fair){sigTxt='🟡 合理區間 · 觀望或小量';sigCls='fair';}
-  else{sigTxt='🔴 偏貴 · 等回檔';sigCls='exp';}
+  else if(close<=cheap){sigTxt='🟢 估值偏低（歷史相對低檔）';sigCls='buy';}
+  else if(close<=fair){sigTxt='🟡 估值合理區間';sigCls='fair';}
+  else{sigTxt='🔴 估值偏高';sigCls='exp';}
   const b1=cheap,b2=cheap?+(cheap*0.95).toFixed(1):null,b3=cheap?+(cheap*0.9).toFixed(1):null;
   const tp=fair?+(fair*1.15).toFixed(1):null;
   const lastA=s.roeAcc?(s.roeAcc[_yk(s.roeAcc).slice(-1)[0]]):null;
   let html=`<div class="sigbig ${sigCls}">${sigTxt}</div>`;
   html+=`<div class="kv"><span>現價</span><b>${close??'—'}</b><span>便宜價</span><b>${cheap??'—'}</b><span>合理價</span><b>${fair??'—'}</b><span>最新會計ROE</span><b>${lastA!=null?lastA+'%':'—'}</b></div>`;
   html+=`<ul class="strat">
-    <li><b>進場紀律：</b>只在便宜價附近分批，建議三批 — ${b1?`${b1} / ${b2} / ${b3}`:'估值不足'}（嚴守不追高）。</li>
-    <li><b>停利：</b>觸及合理價×1.15 ≈ <b>${tp??'—'}</b> 開始分批減碼；偏離合理價愈遠，了結比例愈高。</li>
-    <li><b>停損／檢核：</b>這類高ROE好公司「賣出」多半因<b>基本面轉壞</b>，非帳面套牢 — 會計ROE 連兩季跌破 15%、或護城河弱化即重評。</li>
-    <li><b>風險心理：</b>本檔歷史最大回撤約 <b>${r?r.mdd.toFixed(0)+'%':'—'}</b>，須有抱住波動的準備（個股波動遠大於 0050）。</li>
-    <li><b>方法：</b>近20年回測顯示 <b>定期定額</b>(${r?fmtMoneyX(r.dcaX):'—'}) 較能熨平擇時風險；<b>單筆</b>(${r?fmtMoneyX(r.lumpX):'—'})報酬高但回撤痛。</li>
+    <li><b>估值參考區間：</b>便宜價＝歷史本益比／淨值比 20 百分位${b1?`（${b1} / ${b2} / ${b3} 為遞低統計位階）`:''}、合理價＝50 百分位。<b>僅為統計位階，非進出場指示。</b></li>
+    <li><b>估值偏高區：</b>股價達合理價×1.15 ≈ <b>${tp??'—'}</b> 以上，歷史上多落在估值偏高區。</li>
+    <li><b>基本面檢核：</b>本研究的選股前提為「ROE 持續＞15%」；若會計ROE 連兩季跌破 15%、或護城河弱化，代表<b>前提已改變</b>，須重新評估（此時的「便宜」可能是價值陷阱）。</li>
+    <li><b>波動風險：</b>本檔歷史最大回撤約 <b>${r?r.mdd.toFixed(0)+'%':'—'}</b>，個股波動遠大於 0050。</li>
+    <li><b>回測參考：</b>近20年 <b>定期定額</b> ${r?fmtMoneyX(r.dcaX):'—'}、<b>單筆</b> ${r?fmtMoneyX(r.lumpX):'—'}（含息還原、未計手續費與稅，僅供研究）。</li>
   </ul>`;
   return html;
 }
@@ -818,7 +818,7 @@ function openAnalysis(code){
    <div class="anahint">股價落在<span style="color:${CC.down}">綠帶(高殖利率)</span>偏便宜。色帶=現金股利÷殖利率。</div>
    <div class="anasec">💰 定期定額 vs 單筆（每年投入1萬，共${r?r.nYears:'—'}年）</div>${dcaSVG(s)}
    <div class="anastat">${r?`單筆 投入${(r.cap/10000).toFixed(0)}萬→${(r.lumpFinal/10000).toFixed(0)}萬(${fmtMoneyX(r.lumpX)})　|　定額 投入${(r.dcaCost_/10000).toFixed(0)}萬→${(r.dcaFinal/10000).toFixed(0)}萬(${fmtMoneyX(r.dcaX)})　|　最大回撤 <span style="color:${CC.up}">-${r.mdd.toFixed(0)}%</span>(${r.mddLabel})`:''}</div>
-   <div class="anasec">🧭 投資策略建議</div>${strategyHTML(s)}
+   <div class="anasec">🧭 估值位階與風險提醒</div>${strategyHTML(s)}
    <div class="mbtns"><button class="go" onclick="closeM('amask');if(typeof openOrder==='function')openOrder('${code}')">📲 帶入元大下單</button><button class="cancel" onclick="closeM('amask')">關閉</button></div>
    <div class="anadisc">資料：證交所/櫃買逐年高低價＋FinMind EPS/配息＋會計ROE。回測為年資料近似、未計手續費與稅，<b>非投資建議，盈虧自負</b>。</div>`;
   m.classList.add('show');
@@ -828,20 +828,20 @@ function openAnalysis(code){
 function renderStrat(){
   const list=document.getElementById('list');
   const universe=(typeof all==='function'?all():[]).filter(d=>SERIES[d.code]);
-  let html=`<div class="sec">🧭 投資策略總則（高ROE長青股）</div>
+  let html=`<div class="sec">🧭 研究方法與估值口徑（高ROE長青股）</div>
    <div class="card"><ul class="strat">
-    <li><b>選股：</b>近15年 ROE 年年＞15%、產業有護城河（通路/品牌/技術），用<b>會計ROE</b>檢核一致性、剔除循環股假象。</li>
-    <li><b>進場紀律：</b>只在<b>便宜價</b>分批（三批：便宜價／×0.95／×0.9），不追高；現金分批、定期定額熨平擇時。</li>
-    <li><b>停利：</b>觸及<b>合理價×1.15</b>起分批減碼；嚴重偏離合理價（+30%↑）加大了結。</li>
-    <li><b>停損／檢核：</b>賣出多因<b>基本面轉壞</b>（ROE 連兩季破15%、護城河弱化），非短線套牢即砍。</li>
-    <li><b>風險：</b>個股最大回撤達 55–88%（高於 0050 的 -57%），務必分散、控制單一部位。</li>
-    <li><b>心法：</b>高ROE≠高報酬，<b>「好價格買好公司」</b>才是關鍵（統一超/全家 ROE 高但買貴，報酬僅約2倍）。</li>
+    <li><b>選股口徑：</b>近16年 ROE 年年＞15%、產業具護城河（通路/品牌/技術），用<b>會計ROE</b>檢核一致性、剔除循環股假象。</li>
+    <li><b>估值區間：</b>便宜價＝歷史本益比／淨值比 20 百分位（×0.95／×0.9 為遞低統計位階）、合理價＝50 百分位。<b>皆為統計位階，非進出場指示。</b></li>
+    <li><b>估值偏高區：</b>股價達<b>合理價×1.15</b>以上，歷史多處於估值偏高區。</li>
+    <li><b>基本面檢核：</b>選股前提為 ROE 持續＞15%；ROE 連兩季破15%或護城河弱化代表<b>前提改變</b>，此時的「便宜」可能是價值陷阱。</li>
+    <li><b>風險：</b>個股最大回撤達 55–88%（高於 0050 的 -57%），須注意集中度。</li>
+    <li><b>觀察：</b>高ROE≠高報酬，<b>買進價位（估值）對長期報酬影響極大</b>（統一超/全家 ROE 高但歷史買貴，報酬僅約2倍）。</li>
    </ul></div>
-   <div class="sec" style="margin-top:14px">📋 各股當前訊號 ｜ 點卡片看20年深度分析</div>`;
+   <div class="sec" style="margin-top:14px">📋 各股估值位階 ｜ 點卡片看20年深度分析</div>`;
   universe.sort((a,b)=>(a.rank||99)-(b.rank||99)).forEach(d=>{
     const s=SERIES[d.code],close=s.close,cheap=s.cheap,fair=s.fair;let t,c;
-    if(cheap==null){t='—';c='wch';}else if(close<=cheap){t='🟢 便宜·分批買';c='buy';}
-    else if(close<=fair){t='🟡 合理·觀望';c='fair';}else{t='🔴 偏貴·等回檔';c='exp';}
+    if(cheap==null){t='—';c='wch';}else if(close<=cheap){t='🟢 估值偏低';c='buy';}
+    else if(close<=fair){t='🟡 估值合理';c='fair';}else{t='🔴 估值偏高';c='exp';}
     const r=dcaCalc(s);
     html+=`<div class="card" style="cursor:pointer" onclick="openAnalysis('${d.code}')"><div class="crow">
       <div><div class="name">${s.name}<small>${d.code}</small></div>

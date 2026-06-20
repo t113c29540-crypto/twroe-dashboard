@@ -110,9 +110,9 @@ def chart_valuation(rows):
     bands=f'<rect x="{P["l"]}" y="{P["t"]}" width="{iw*0.34}" height="{H-P["t"]-P["b"]}" fill="{CC["down"]}" opacity="0.10"/>'
     bands+=f'<rect x="{P["l"]+iw*0.34}" y="{P["t"]}" width="{iw*0.33}" height="{H-P["t"]-P["b"]}" fill="{CC["gold"]}" opacity="0.10"/>'
     bands+=f'<rect x="{P["l"]+iw*0.67}" y="{P["t"]}" width="{iw*0.33}" height="{H-P["t"]-P["b"]}" fill="{CC["up"]}" opacity="0.10"/>'
-    labs=f'<text x="{P["l"]+iw*0.17}" y="{H-12}" text-anchor="middle" font-size="12" fill="{CC["down"]}">便宜·可分批</text>'
-    labs+=f'<text x="{P["l"]+iw*0.505}" y="{H-12}" text-anchor="middle" font-size="12" fill="{CC["goldlt"]}">合理區間</text>'
-    labs+=f'<text x="{P["l"]+iw*0.835}" y="{H-12}" text-anchor="middle" font-size="12" fill="{CC["up"]}">偏貴·等回檔</text>'
+    labs=f'<text x="{P["l"]+iw*0.17}" y="{H-12}" text-anchor="middle" font-size="12" fill="{CC["down"]}">估值偏低</text>'
+    labs+=f'<text x="{P["l"]+iw*0.505}" y="{H-12}" text-anchor="middle" font-size="12" fill="{CC["goldlt"]}">估值合理</text>'
+    labs+=f'<text x="{P["l"]+iw*0.835}" y="{H-12}" text-anchor="middle" font-size="12" fill="{CC["up"]}">估值偏高</text>'
     dots=""
     rng=H-P["t"]-P["b"]-16
     for i,(x,r) in enumerate(sorted(pts,key=lambda t:t[0])):
@@ -166,7 +166,7 @@ def esc(s): return str(s).replace("&","&amp;").replace("<","&lt;")
 def build_article(date, rows, changes, featured):
     buys=[r for r in rows if r["sig"]=="buy"]
     fairs=[r for r in rows if r["sig"]=="fair"]
-    def sigtag(s): return {"buy":('🟢 便宜',CC["down"]),"fair":('🟡 合理',CC["goldlt"]),"exp":('🔴 偏貴',CC["up"]),"na":('—',CC["mut"])}[s]
+    def sigtag(s): return {"buy":('🟢 估值偏低',CC["down"]),"fair":('🟡 估值合理',CC["goldlt"]),"exp":('🔴 估值偏高',CC["up"]),"na":('—',CC["mut"])}[s]
     head=f"""<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>台股高ROE長青股 · 每日研究 {date}</title>
 <style>body{{margin:0;background:{CC['bg']};color:{CC['tx']};font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.7;font-size:15px}}
@@ -184,10 +184,10 @@ th{{color:{CC['mut']};font-weight:600}} td.l,th.l{{text-align:left}}
 <p class="sub"><a href="index.html">← 研究索引</a> ｜ <a href="../index.html">回行動看板</a></p>
 <h1>台股高 ROE 長青股 · 每日研究</h1>
 <p class="sub">交易日 {date}　｜　資料：TWSE／TPEx 官方開放資料（ROE＝股價淨值比 ÷ 本益比）　｜　本文為數據彙整，非投資建議</p>
-<div class="kpi"><div>追蹤長青股<b>{len(rows)} 檔</b></div><div>今日🟢便宜<b>{len(buys)} 檔</b></div><div>🟡合理<b>{len(fairs)} 檔</b></div></div>
+<div class="kpi"><div>追蹤長青股<b>{len(rows)} 檔</b></div><div>🟢估值偏低<b>{len(buys)} 檔</b></div><div>🟡估值合理<b>{len(fairs)} 檔</b></div></div>
 """
-    # 當日買訊
-    s=['<h2>① 當日買訊與估值</h2>']
+    # 估值偏低觀察名單
+    s=['<h2>① 估值偏低觀察名單（現價 ≤ 歷史便宜價）</h2>']
     if buys:
         s.append('<div class="card"><table><tr><th class="l">名次</th><th class="l">股票</th><th>現價</th><th>便宜價</th><th>距便宜價</th><th>均ROE</th><th>達標</th></tr>')
         for r in sorted(buys,key=lambda r:r["disp"]):
@@ -195,14 +195,14 @@ th{{color:{CC['mut']};font-weight:600}} td.l,th.l{{text-align:left}}
             s.append(f'<tr><td class="l">#{r["disp"]}</td><td class="l">{esc(r["name"])} <span class="note">{r["code"]}</span></td><td>{r["price"]:.1f}</td><td>{r["cheap"]:.1f}</td><td style="color:{CC["down"]}">{dp:+.1f}%</td><td>{r["avgRoe"]:.1f}%</td><td>{r["cons"]}</td></tr>')
         s.append('</table></div>')
     else:
-        s.append(f'<div class="card" style="color:{CC["mut"]}">今日無長青股跌破便宜價。可續觀察🟡合理區間者，或等待回檔。</div>')
-    s.append(f'<p class="note">估值法：以各股歷史本益比／股價淨值比 20 百分位推算「便宜價」、50 百分位推算「合理價」（近16年）。</p>')
+        s.append(f'<div class="card" style="color:{CC["mut"]}">今日無長青股現價低於其歷史便宜價（估值偏低）。</div>')
+    s.append(f'<p class="note">估值法：以各股歷史本益比／股價淨值比 20 百分位推算「便宜價」、50 百分位推算「合理價」（近16年）。<b>此為統計位階，非進出場指示；「便宜」不代表值得買，若基本面轉壞可能是價值陷阱。</b></p>')
     s.append('<h2>② 今日估值位階分布（前50長青股）</h2><div class="card">'+chart_valuation(rows)+'</div>')
     # 異動
     s.append('<h2>③ 前50排行與今日異動</h2>')
     if changes:
         s.append('<div class="card">'+changes+'</div>')
-    s.append('<div class="card"><table><tr><th class="l">名次</th><th class="l">股票</th><th>市場</th><th>達標</th><th>均ROE</th><th>現價</th><th>訊號</th></tr>')
+    s.append('<div class="card"><table><tr><th class="l">名次</th><th class="l">股票</th><th>市場</th><th>達標</th><th>均ROE</th><th>現價</th><th>估值位階</th></tr>')
     for r in sorted(rows,key=lambda r:r["disp"]):
         tg,cl=sigtag(r["sig"]); pr=f'{r["price"]:.1f}' if r["price"] else '—'
         s.append(f'<tr><td class="l">#{r["disp"]}</td><td class="l">{esc(r["name"])} <span class="note">{r["code"]}</span></td><td>{"上市" if r["mkt"]=="tse" else "上櫃"}</td><td>{r["cons"]}</td><td>{r["avgRoe"]:.1f}%</td><td>{pr}</td><td style="color:{cl}">{tg}</td></tr>')
@@ -217,7 +217,7 @@ th{{color:{CC['mut']};font-weight:600}} td.l,th.l{{text-align:left}}
 <b>選股：</b>近16年（2010–2025）ROE 年年＞15% 的長青股，以「達標一致性」排序、均ROE 次之。<br>
 <b>ROE：</b>＝股價淨值比 ÷ 本益比（＝每股盈餘／每股淨值），資料取自 TWSE／TPEx 官方每年年底全市場本益比與股價淨值比；某年無本益比＝該年虧損／無盈餘，計為未達標（修正景氣循環股偏誤）。<br>
 <b>估值：</b>三法（本益比／股價淨值比）歷史百分位推算便宜價（20%）與合理價（50%）。<br>
-<b>進場紀律：</b>只在便宜價附近分批；停利於合理價×1.15；賣出多因基本面轉壞（ROE 跌破15%）而非短線套牢。個股最大回撤可達 55–88%，務必分散。</div>""")
+<b>估值口徑（非進出場指示）：</b>便宜價／合理價為統計位階；此類股的「便宜」前提是 ROE 持續＞15%，ROE 跌破門檻時所謂便宜可能是<b>價值陷阱</b>。個股最大回撤可達 55–88%，須注意集中度。本研究僅供教育，不構成任何買賣建議。</div>""")
     foot=f"""<div class="foot">本文由程式自動彙整 TWSE／TPEx 官方公開資料生成（ROE＝股價淨值比÷本益比），<b>僅供研究與教育，非投資建議，盈虧自負</b>。估值為歷史統計推算、非保證。資料可能因官方更新或停牌而有缺漏。<br>產生時間（交易日）：{date}　｜　專案：台股高ROE長青股看板</div></div></body></html>"""
     return head+"\n".join(s)+foot
 
@@ -246,6 +246,13 @@ def main():
         if price and cheap and fair:
             sig = "buy" if price<=cheap else ("fair" if price<=fair else "exp")
         rows.append({**s,"price":price,"per":per,"pbr":pbr,"cheap":cheap,"fair":fair,"roeNow":roe,"sig":sig})
+    # 資料品質關卡：抓不到足夠資料就不發佈（寧缺勿錯）
+    MIN_OK = 40
+    hits = sum(1 for r in rows if r["price"])
+    valued = sum(1 for r in rows if r["cheap"] is not None)
+    if hits < MIN_OK or valued < MIN_OK:
+        print(f"✗ 資料品質不足：現價命中 {hits}/{len(rows)}、可估值 {valued}/{len(rows)}（門檻 {MIN_OK}）。今日不發佈、不提交。")
+        raise SystemExit(1)
     # 異動 vs 前次
     prev={}
     if os.path.exists(STATE):
@@ -255,8 +262,8 @@ def main():
     new_buy=[r for r in rows if r["sig"]=="buy" and prev_sig.get(r["code"])!="buy"]
     left_buy=[c for c,sg in prev_sig.items() if sg=="buy" and next((r for r in rows if r["code"]==c and r["sig"]=="buy"),None) is None]
     if prev:
-        if new_buy: changes.append('🟢 新增買訊：'+("、".join(f'{r["name"]}({r["code"]})' for r in new_buy)))
-        if left_buy: changes.append('⬆️ 脫離便宜價：'+("、".join(left_buy)))
+        if new_buy: changes.append('🟢 新增估值偏低：'+("、".join(f'{r["name"]}({r["code"]})' for r in new_buy)))
+        if left_buy: changes.append('⬆️ 脫離估值偏低區：'+("、".join(left_buy)))
         # 漲跌幅前3
         moves=[]
         for r in rows:
@@ -273,7 +280,7 @@ def main():
     rebuild_index()
     json.dump({"date":date,"prices":{r["code"]:r["price"] for r in rows if r["price"]},
                "signals":{r["code"]:r["sig"] for r in rows}}, open(STATE,"w"), ensure_ascii=False)
-    print(f"✓ 產生 {out}（買訊{sum(1 for r in rows if r['sig']=='buy')}檔，價格命中{sum(1 for r in rows if r['price'])}/{len(rows)}）")
+    print(f"✓ 產生 {out}（估值偏低{sum(1 for r in rows if r['sig']=='buy')}檔，價格命中{sum(1 for r in rows if r['price'])}/{len(rows)}）")
 
 if __name__=="__main__":
     main()
