@@ -207,16 +207,46 @@ const ANALYZED=[
 ANALYZED.forEach(d=>{d.ch=`${d.mkt}_${d.code}.tw`;d.price=d.close;d.live=false;});
 // 長青排行 11–20 名(來自全市場掃描;估值/現ROE由 FinMind 即時計算)
 const RANKEXT=[
- {rank:11,code:"8422",name:"可寧衛",mkt:"tse",aroe:25.6,grp:"rank"},
- {rank:12,code:"8416",name:"實威",  mkt:"otc",aroe:25.0,grp:"rank"},
- {rank:13,code:"1232",name:"大統益",mkt:"tse",aroe:24.4,grp:"rank"},
- {rank:14,code:"6146",name:"耕興",  mkt:"otc",aroe:23.3,grp:"rank"},
- {rank:15,code:"8109",name:"博大",  mkt:"otc",aroe:23.3,grp:"rank"},
- {rank:16,code:"3045",name:"台灣大",mkt:"tse",aroe:23.2,grp:"rank"},
- {rank:17,code:"2395",name:"研華",  mkt:"tse",aroe:22.4,grp:"rank"},
- {rank:18,code:"2385",name:"群光",  mkt:"tse",aroe:19.7,grp:"rank"},
- {rank:19,code:"6803",name:"崑鼎",  mkt:"otc",aroe:18.3,grp:"rank"},
- {rank:20,code:"3611",name:"鼎翰",  mkt:"otc",aroe:24.3,grp:"rank"},
+ {rank:11,code:"8416",name:"實威",mkt:"tse",aroe:25.1,cons:"14/14",grp:"rank"},
+ {rank:12,code:"1232",name:"大統益",mkt:"tse",aroe:24.3,cons:"16/16",grp:"rank"},
+ {rank:13,code:"6146",name:"耕興",mkt:"tse",aroe:23.7,cons:"16/16",grp:"rank"},
+ {rank:14,code:"8109",name:"博大",mkt:"tse",aroe:23.7,cons:"16/16",grp:"rank"},
+ {rank:15,code:"3045",name:"台灣大",mkt:"tse",aroe:23.5,cons:"16/16",grp:"rank"},
+ {rank:16,code:"2395",name:"研華",mkt:"tse",aroe:22.5,cons:"16/16",grp:"rank"},
+ {rank:17,code:"2385",name:"群光",mkt:"tse",aroe:19.8,cons:"16/16",grp:"rank"},
+ {rank:18,code:"6803",name:"崑鼎",mkt:"tse",aroe:18.2,cons:"16/16",grp:"rank"},
+ {rank:19,code:"2404",name:"漢唐",mkt:"tse",aroe:30.0,cons:"15/16",grp:"rank"},
+ {rank:20,code:"3611",name:"鼎翰",mkt:"tse",aroe:24.9,cons:"15/16",grp:"rank"},
+ {rank:21,code:"6263",name:"普萊德",mkt:"tse",aroe:23.2,cons:"15/16",grp:"rank"},
+ {rank:22,code:"1477",name:"聚陽",mkt:"tse",aroe:23.0,cons:"15/16",grp:"rank"},
+ {rank:23,code:"3130",name:"一零四",mkt:"tse",aroe:23.0,cons:"15/16",grp:"rank"},
+ {rank:24,code:"2383",name:"台光電",mkt:"tse",aroe:22.6,cons:"15/16",grp:"rank"},
+ {rank:25,code:"8210",name:"勤誠",mkt:"tse",aroe:22.2,cons:"15/16",grp:"rank"},
+ {rank:26,code:"9917",name:"中保科",mkt:"tse",aroe:20.0,cons:"15/16",grp:"rank"},
+ {rank:27,code:"6281",name:"全國電",mkt:"tse",aroe:19.7,cons:"15/16",grp:"rank"},
+ {rank:28,code:"2308",name:"台達電",mkt:"tse",aroe:17.9,cons:"15/16",grp:"rank"},
+ {rank:29,code:"8422",name:"可寧衛",mkt:"tse",aroe:24.9,cons:"14/15",grp:"rank"},
+ {rank:30,code:"2207",name:"和泰車",mkt:"tse",aroe:23.3,cons:"14/16",grp:"rank",note:"某年PER缺漏·實際達標更高"},
+ {rank:31,code:"1537",name:"廣隆",mkt:"tse",aroe:22.2,cons:"14/16",grp:"rank"},
+ {rank:32,code:"2059",name:"川湖",mkt:"tse",aroe:21.0,cons:"14/16",grp:"rank"},
+ {rank:33,code:"8299",name:"群聯",mkt:"tse",aroe:20.4,cons:"14/16",grp:"rank",note:"記憶體景氣循環"},
+ {rank:34,code:"3213",name:"茂訊",mkt:"tse",aroe:20.0,cons:"14/16",grp:"rank",note:"規模小波動大"},
+ {rank:35,code:"6206",name:"飛捷",mkt:"tse",aroe:19.7,cons:"14/16",grp:"rank"},
+ {rank:36,code:"1773",name:"勝一",mkt:"tse",aroe:18.8,cons:"14/16",grp:"rank"},
+ {rank:37,code:"5434",name:"崇越",mkt:"tse",aroe:18.7,cons:"14/16",grp:"rank"},
+ {rank:38,code:"9941",name:"裕融",mkt:"tse",aroe:18.3,cons:"14/16",grp:"rank"},
+ {rank:39,code:"9942",name:"茂順",mkt:"tse",aroe:18.2,cons:"14/16",grp:"rank"},
+ {rank:40,code:"3529",name:"力旺",mkt:"tse",aroe:33.9,cons:"13/15",grp:"rank",note:"IP授權金波動"},
+ {rank:41,code:"3563",name:"牧德",mkt:"tse",aroe:26.0,cons:"13/15",grp:"rank",note:"設備接單循環"},
+ {rank:42,code:"1590",name:"亞德客-KY",mkt:"tse",aroe:18.9,cons:"13/15",grp:"rank",note:"KY外國企業"},
+ {rank:43,code:"5234",name:"達興材料",mkt:"tse",aroe:20.0,cons:"12/14",grp:"rank"},
+ {rank:44,code:"2640",name:"大車隊",mkt:"tse",aroe:19.8,cons:"12/14",grp:"rank"},
+ {rank:45,code:"3293",name:"鈊象",mkt:"tse",aroe:37.5,cons:"13/16",grp:"rank",note:"早期低基期·近年爆發"},
+ {rank:46,code:"1565",name:"精華",mkt:"tse",aroe:27.3,cons:"13/16",grp:"rank",note:"近年獲利衰退"},
+ {rank:47,code:"8114",name:"振樺電",mkt:"tse",aroe:24.6,cons:"13/16",grp:"rank",note:"近年衰退"},
+ {rank:48,code:"5536",name:"聖暉",mkt:"tse",aroe:23.2,cons:"13/16",grp:"rank"},
+ {rank:49,code:"1707",name:"葡萄王",mkt:"tse",aroe:22.7,cons:"13/16",grp:"rank"},
+ {rank:50,code:"6202",name:"盛群",mkt:"tse",aroe:20.7,cons:"13/16",grp:"rank",note:"半導體景氣循環"},
 ];
 RANKEXT.forEach(d=>{d.ch=`${d.mkt}_${d.code}.tw`;d.price=0;d.live=false;});
 let WATCH=JSON.parse(localStorage.getItem('twroe_watch')||'[]');
@@ -225,7 +255,7 @@ const all=()=>ANALYZED.concat(RANKEXT).concat(WATCH);
 const byCode=c=>all().find(s=>s.code===c);
 const LONGRANK=()=>ANALYZED.filter(d=>d.rank).concat(RANKEXT).sort((a,b)=>a.rank-b.rank);
 
-let filter="all",topN=Math.min(20,Math.max(1,parseInt(localStorage.getItem('twroe_topn'))||10)),
+let filter="all",topN=Math.min(50,Math.max(1,parseInt(localStorage.getItem('twroe_topn'))||50)),
     autoOn=true,alertOn=false,timer=null,alerted={},open5={},openChart={},chartCache={};
 const $=s=>document.querySelector(s);
 function marketOpen(){const n=new Date(),d=n.getDay(),t=n.getHours()*60+n.getMinutes();return d>=1&&d<=5&&t>=540&&t<=810;}
@@ -309,8 +339,8 @@ function render(){
     items.forEach(d=>list.appendChild(cardEl(d)));
   });
   if(!any)list.innerHTML='<div style="text-align:center;color:var(--mut);padding:30px">此分類暫無股票</div>';
-  // 觸發目前可見的排行股(11-20)即時估值
-  longList.filter(d=>d.grp==='rank'&&d.cheap==null&&!d.valuing&&!d.valFail&&(d.prev||d.price)).forEach(d=>loadVal(d));
+  // 觸發目前可見的排行股即時估值(錯開避免代理被限流)
+  longList.filter(d=>d.grp==='rank'&&d.cheap==null&&!d.valuing&&!d.valFail&&(d.prev||d.price)).forEach((d,i)=>setTimeout(()=>loadVal(d), i*350));
 }
 function cardEl(d){
   const chg=(d.price&&d.prev)?d.price-d.prev:0, pct=d.prev?chg/d.prev*100:0, c=cls(chg);
@@ -329,13 +359,15 @@ function cardEl(d){
     const dp=((d.price-d.cheap)/d.cheap*100);
     let m2;
     if(d.grp==='watch') m2=`<span>現ROE <b>${d.roe}%</b></span><span>本益比 <b>${d.per}</b></span><span>淨值比 <b>${d.pbr}</b></span><span>近4季EPS <b>${d.eps}</b></span><span>殖利率 <b>${d.dyield}%</b></span>`;
-    else if(d.grp==='rank') m2=`<span>近15年平均ROE <b>${d.aroe}%</b></span><span>現ROE <b>${d.roe??'—'}%</b></span><span>本益比 <b>${d.per??'—'}</b></span><span>殖利率 <b>${d.dyield??'—'}%</b></span>`;
+    else if(d.grp==='rank') m2=`<span>達標 <b>${d.cons||'—'}</b></span><span>均ROE <b>${d.aroe}%</b></span><span>現ROE <b>${d.roe??'—'}%</b></span><span>本益比 <b>${d.per??'—'}</b></span>${d.note?`<span style="color:var(--goldlt)">⚠ ${d.note}</span>`:''}`;
     else m2=`<span>平均ROE <b>${d.roe}%</b></span><span>20年含息IRR <b>${d.irr}%</b></span>`;
     body+=`<div class="bar"><div class="track"></div>
       <div class="tick" style="left:${cP}%"></div><div class="lab" style="left:${cP}%">便宜 ${d.cheap}</div>
       <div class="tick" style="left:${fP}%"></div><div class="lab" style="left:${fP}%">合理 ${d.fair}</div>
       <div class="now" style="left:${pos}%"></div></div>
       <div class="meta"><span>${d.price<=d.cheap?'低於便宜價':'距便宜價'} ${dp>=0?'+':''}${dp.toFixed(1)}%</span>${m2}</div>`;
+  }else if(d.grp==='rank'){
+    body+=`<div class="meta"><span>達標 <b>${d.cons||'—'}</b></span><span>近16年均ROE <b>${d.aroe}%</b></span><span>現價 <b>${d.price||'—'}</b></span><span>${d.valFail?'即時估值不足':'估值載入中…'}</span>${d.note?`<span style="color:var(--goldlt)">⚠ ${d.note}</span>`:''}</div>`;
   }else{
     body+=`<div class="meta"><span>開 <b>${d.o||'—'}</b></span><span>高 <b>${d.h||'—'}</b></span><span>低 <b>${d.l||'—'}</b></span><span>量 <b>${d.vol||'—'}</b>張</span></div>`;
   }
@@ -525,16 +557,16 @@ async function toggleChart(code){
 // ===== 前N名選擇 =====
 function buildTopN(){
   const row=$("#topnRow");
-  [5,10,15,20].forEach(n=>{
+  [10,20,30,50].forEach(n=>{
     const c=document.createElement('div');c.className='nchip'+(n===topN?' sel':'');c.textContent=n;
     c.onclick=()=>{topN=n;localStorage.setItem('twroe_topn',n);syncTopN();render();};
     row.appendChild(c);
   });
   const inp=document.createElement('input');
   inp.id='topnInput';inp.inputMode='numeric';inp.placeholder='自訂';
-  inp.onchange=()=>{const v=parseInt(inp.value);if(v>=1){topN=Math.min(20,Math.max(1,v));localStorage.setItem('twroe_topn',topN);syncTopN();render();}inp.value='';};
+  inp.onchange=()=>{const v=parseInt(inp.value);if(v>=1){topN=Math.min(50,Math.max(1,v));localStorage.setItem('twroe_topn',topN);syncTopN();render();}inp.value='';};
   row.appendChild(inp);
-  const lab=document.createElement('span');lab.textContent='名(最多20)';row.appendChild(lab);
+  const lab=document.createElement('span');lab.textContent='名(最多50)';row.appendChild(lab);
 }
 function syncTopN(){[...$("#topnRow").querySelectorAll('.nchip')].forEach(c=>c.classList.toggle('sel',+c.textContent===topN));}
 
