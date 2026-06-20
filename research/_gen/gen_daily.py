@@ -4,7 +4,7 @@
 產出：research/YYYY-MM-DD.html（含內嵌 SVG 圖）、更新 research/index.html、_gen/state.json
 本產出為數據彙整，非投資建議。
 """
-import json, os, subprocess, statistics, glob
+import json, os, subprocess, statistics, glob, time, datetime
 
 GEN = os.path.dirname(os.path.abspath(__file__))
 RES = os.path.dirname(GEN)                      # research/
@@ -26,40 +26,45 @@ def num(x):
     try: return float(str(x).replace(",","").replace("--","").strip())
     except (ValueError, TypeError): return None
 
-def fetch_prices():
-    p = {}
-    try:
-        for r in json.loads(curl("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL")):
-            c=str(r.get("Code","")).strip(); v=num(r.get("ClosingPrice"))
-            if v: p[c]=v
-    except Exception: pass
-    try:
-        for r in json.loads(curl("https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes")):
-            c=str(r.get("SecuritiesCompanyCode","")).strip(); v=num(r.get("Close"))
-            if v: p[c]=v
-    except Exception: pass
-    return p
+FINMIND = "https://api.finmindtrade.com/api/v4/data"
 
-def fetch_pepbr():
-    m = {}
-    try:
-        for r in json.loads(curl("https://openapi.twse.com.tw/v1/exchangeReport/BWIBBU_ALL")):
-            m[str(r.get("Code","")).strip()] = (num(r.get("PEratio")), num(r.get("PBratio")))
-    except Exception: pass
-    try:
-        for r in json.loads(curl("https://www.tpex.org.tw/openapi/v1/tpex_mainboard_peratio_analysis")):
-            m[str(r.get("SecuritiesCompanyCode","")).strip()] = (num(r.get("PriceEarningRatio")), num(r.get("PriceBookRatio")))
-    except Exception: pass
-    return m
+def fm(dataset, code, start, end, tries=4):
+    """FinMind 取單檔資料（全球可達；GitHub 雲端用此，TWSE/TPEx 官網會擋雲端IP）"""
+    url = f"{FINMIND}?dataset={dataset}&data_id={code}&start_date={start}&end_date={end}"
+    for t in range(tries):
+        txt = curl(url, tries=1)
+        try:
+            d = json.loads(txt)
+            if d.get("status") == 200: return d.get("data", [])
+            if d.get("status") == 402: time.sleep(3.0*(t+1)); continue   # 限流→退避
+        except Exception: pass
+        time.sleep(1.5)
+    return []
 
-def trade_date():
-    """由 STOCK_DAY_ALL 的 Date(民國) 取得交易日 → YYYY-MM-DD"""
-    try:
-        d = json.loads(curl("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL"))
-        roc = str(d[0]["Date"])
-        return f"{int(roc[:3])+1911:04d}-{roc[3:5]}-{roc[5:7]}"
-    except Exception:
-        return ""
+def fetch_market(codes):
+    """逐檔抓最新本益比/股價淨值比(TaiwanStockPER)與收盤(TaiwanStockPrice)。
+    回傳 {code:{price,per,pbr,yield}} 與 交易日。"""
+    today = datetime.date.today()
+    start = (today - datetime.timedelta(days=90)).isoformat()
+    end = today.isoformat()
+    out, tdate = {}, ""
+    for c in codes:
+        per_rows = fm("TaiwanStockPER", c, start, end)
+        price_rows = fm("TaiwanStockPrice", c, start, end)
+        rec = {}
+        if per_rows:
+            last = per_rows[-1]
+            rec["per"] = num(last.get("PER")); rec["pbr"] = num(last.get("PBR"))
+            rec["yield"] = num(last.get("dividend_yield"))
+            if last.get("date") and last["date"] > tdate: tdate = last["date"]
+        if price_rows:
+            pr = [r for r in price_rows if num(r.get("close"))]
+            if pr:
+                rec["price"] = num(pr[-1].get("close"))
+                if pr[-1].get("date") and pr[-1]["date"] > tdate: tdate = pr[-1]["date"]
+        out[c] = rec
+        time.sleep(0.25)
+    return out, tdate
 
 def pctile(a, p):
     a = sorted(v for v in a if v is not None and v>0)
@@ -231,10 +236,11 @@ ul{{list-style:none;padding:0}} li{{background:{CC['card']};border:1px solid {CC
 
 def main():
     data=json.load(open(DATA)); stocks=data["stocks"]
-    prices=fetch_prices(); pepbr=fetch_pepbr(); date=trade_date() or "latest"
+    market, date = fetch_market([s["code"] for s in stocks])
+    date = date or datetime.date.today().isoformat()
     rows=[]
     for s in stocks:
-        c=s["code"]; price=prices.get(c); per,pbr=pepbr.get(c,(None,None))
+        c=s["code"]; m=market.get(c,{}); price=m.get("price"); per=m.get("per"); pbr=m.get("pbr")
         cheap,fair,roe=valuation(s,price,per,pbr) if price else (None,None,None)
         sig="na"
         if price and cheap and fair:
