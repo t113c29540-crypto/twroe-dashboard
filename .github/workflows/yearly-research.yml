@@ -1,0 +1,41 @@
+name: 每年研究圖文（草稿→審核後發佈）
+
+on:
+  schedule:
+    - cron: "0 9 10 1 *"   # 每年 1/10 17:00 台灣時間（年報結算後）
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: yearly-research
+  cancel-in-progress: false
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    env:
+      FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: 產生每年草稿（FinMind；資料不足則 SystemExit 不發佈）
+        run: python3 research/_gen/gen_daily.py yearly
+      - name: 開草稿 PR（合併才公開）
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          STUB=$(cat pr_date.txt); BRANCH="daily/$STUB"
+          git config user.name "twroe-research-bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add research
+          if git diff --cached --quiet; then echo "無新內容"; exit 0; fi
+          git checkout -b "$BRANCH"
+          git commit -m "每年研究草稿 $STUB（待審核）"
+          git push -f origin "$BRANCH"
+          PREVIEW="https://htmlpreview.github.io/?https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${BRANCH}/research/${STUB}.html"
+          { echo "🔍 **預覽渲染版**：$PREVIEW"; echo; cat pr_body.md; } > /tmp/body.md
+          gh pr create --base main --head "$BRANCH" --title "📝 每年研究草稿 $STUB（審核後合併才公開）" --body-file /tmp/body.md \
+          || gh pr edit "$BRANCH" --title "📝 每年研究草稿 $STUB（審核後合併才公開）" --body-file /tmp/body.md
