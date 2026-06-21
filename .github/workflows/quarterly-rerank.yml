@@ -1,0 +1,42 @@
+name: 每季重排前50＋季研究（草稿→審核後發佈）
+
+on:
+  schedule:
+    - cron: "0 9 5 1,4,7,10 *"   # 1/4/7/10 月 5 號 17:00 台灣時間（季財報後）
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: quarterly-rerank
+  cancel-in-progress: false
+
+jobs:
+  rerank:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: 季重排前50（FinMind 候選池掃描，更新 data50.json）
+        run: python3 research/_gen/scan_finmind.py 150
+      - name: 產生季研究草稿（用新前50）
+        run: python3 research/_gen/gen_daily.py quarterly
+      - name: 開草稿 PR（含新排行＋季報，合併才公開）
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          STUB=$(cat pr_date.txt); BRANCH="daily/$STUB"
+          git config user.name "twroe-research-bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add research
+          if git diff --cached --quiet; then echo "無變更"; exit 0; fi
+          git checkout -b "$BRANCH"
+          git commit -m "季重排前50＋季研究草稿 $STUB（待審核）"
+          git push -f origin "$BRANCH"
+          PREVIEW="https://htmlpreview.github.io/?https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${BRANCH}/research/${STUB}.html"
+          { echo "🔁 **本季已重排前50名**（FinMind 候選池）。"; echo "🔍 **預覽**：$PREVIEW"; echo; cat pr_body.md; } > /tmp/body.md
+          gh pr create --base main --head "$BRANCH" --title "🔁 季重排前50＋季研究草稿 $STUB（審核後合併才公開）" --body-file /tmp/body.md \
+          || gh pr edit "$BRANCH" --title "🔁 季重排前50＋季研究草稿 $STUB（審核後合併才公開）" --body-file /tmp/body.md

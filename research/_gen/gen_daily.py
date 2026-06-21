@@ -4,7 +4,10 @@
 產出：research/YYYY-MM-DD.html（含內嵌 SVG 圖）、更新 research/index.html、_gen/state.json
 本產出為數據彙整，非投資建議。
 """
-import json, os, subprocess, statistics, glob, time, datetime
+import json, os, subprocess, statistics, glob, time, datetime, sys
+
+PLABEL = {"daily":"每日","weekly":"每週","monthly":"每月","quarterly":"每季"}
+PWINDOW = {"daily":1,"weekly":5,"monthly":20,"quarterly":60}
 
 GEN = os.path.dirname(os.path.abspath(__file__))
 RES = os.path.dirname(GEN)                      # research/
@@ -163,12 +166,13 @@ def chart_roe_trend(stk):
 # ---------- 文章 ----------
 def esc(s): return str(s).replace("&","&amp;").replace("<","&lt;")
 
-def build_article(date, rows, changes, featured):
+def build_article(date, rows, changes, featured, recon=None, period="daily"):
+    plabel=PLABEL.get(period,"每日"); recon=recon or []
     buys=[r for r in rows if r["sig"]=="buy"]
     fairs=[r for r in rows if r["sig"]=="fair"]
     def sigtag(s): return {"buy":('🟢 估值偏低',CC["down"]),"fair":('🟡 估值合理',CC["goldlt"]),"exp":('🔴 估值偏高',CC["up"]),"na":('—',CC["mut"])}[s]
     head=f"""<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>台股高ROE長青股 · 每日研究 {date}</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>台股高ROE長青股 · {plabel}研究 {date}</title>
 <style>body{{margin:0;background:{CC['bg']};color:{CC['tx']};font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.7;font-size:15px}}
 .wrap{{max-width:820px;margin:0 auto;padding:20px 16px 60px}}
 h1{{font-size:22px;color:{CC['gold']};margin:6px 0 2px}} h2{{font-size:16px;color:{CC['goldlt']};border-left:3px solid {CC['gold']};padding-left:9px;margin:26px 0 10px}}
@@ -182,9 +186,9 @@ th{{color:{CC['mut']};font-weight:600}} td.l,th.l{{text-align:left}}
 .kpi{{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}} .kpi div{{background:{CC['card']};border:1px solid {CC['line']};border-radius:10px;padding:8px 14px;font-size:13px}} .kpi b{{font-size:18px;color:{CC['goldlt']};display:block}}
 </style></head><body><div class="wrap">
 <p class="sub"><a href="index.html">← 研究索引</a> ｜ <a href="../index.html">回行動看板</a></p>
-<h1>台股高 ROE 長青股 · 每日研究</h1>
+<h1>台股高 ROE 長青股 · {plabel}研究</h1>
 <p class="sub">交易日 {date}　｜　資料：TWSE／TPEx 官方開放資料（ROE＝股價淨值比 ÷ 本益比）　｜　本文為數據彙整，非投資建議</p>
-<div class="kpi"><div>追蹤長青股<b>{len(rows)} 檔</b></div><div>🟢估值偏低<b>{len(buys)} 檔</b></div><div>🟡估值合理<b>{len(fairs)} 檔</b></div></div>
+<div class="kpi"><div>追蹤長青股<b>{len(rows)} 檔</b></div><div>🟢估值偏低<b>{len(buys)} 檔</b></div><div>🟡估值合理<b>{len(fairs)} 檔</b></div>{f'<div>⚠️對帳待查<b>{len(recon)} 檔</b></div>' if recon else ''}</div>
 """
     # 估值偏低觀察名單
     s=['<h2>① 估值偏低觀察名單（現價 ≤ 歷史便宜價）</h2>']
@@ -212,6 +216,16 @@ th{{color:{CC['mut']};font-weight:600}} td.l,th.l{{text-align:left}}
     if featured:
         s.append(f'<h2>⑤ ROE 趨勢快照：{esc(featured["name"])}（{featured["code"]}）</h2>')
         s.append(f'<div class="card">{chart_roe_trend(featured)}<p class="note">金柱＝會計ROE推算（紅＝低於15%門檻）。一致性 {featured["cons"]}、近16年均 {featured["avgRoe"]:.1f}%。</p></div>')
+    # 對帳(市場推算ROE vs 會計ROE)
+    s.append('<h2>⑦ 資料對帳（市場推算 ROE × 會計 ROE）</h2>')
+    if recon:
+        s.append(f'<div class="card"><p class="note">以下 {len(recon)} 檔，兩種獨立算法的 ROE 差異 &gt;35%，數字僅供參考、<b>待查</b>（常見於高股價淨值比股、財報時點差異，多為時點差非錯誤）。</p><table><tr><th class="l">股票</th><th>市場推算ROE</th><th>會計ROE</th><th>差異</th></tr>')
+        for x in recon[:15]:
+            s.append(f'<tr><td class="l">{esc(x["name"])} <span class="note">{x["code"]}</span></td><td>{x["mkt"]}%</td><td>{x["acc"]}%</td><td style="color:{CC["up"]}">{x["diff"]}%</td></tr>')
+        s.append('</table></div>')
+    else:
+        s.append(f'<div class="card" style="color:{CC["down"]}">✓ 前50檔市場推算 ROE 與會計 ROE 大致一致（差異皆 ≤35%）。</div>')
+    s.append(f'<p class="note">對帳方法：市場推算 ROE＝股價淨值比÷本益比；會計 ROE＝年度稅後淨利÷年末股東權益（皆取自 FinMind 不同資料集，獨立計算）。</p>')
     # 方法
     s.append(f"""<h2>⑥ 研究方法</h2><div class="card" style="font-size:13px;line-height:1.8">
 <b>選股：</b>近16年（2010–2025）ROE 年年＞15% 的長青股，以「達標一致性」排序、均ROE 次之。<br>
@@ -235,6 +249,8 @@ ul{{list-style:none;padding:0}} li{{background:{CC['card']};border:1px solid {CC
     open(os.path.join(RES,"index.html"),"w",encoding="utf-8").write(html)
 
 def main():
+    PERIOD = sys.argv[1] if len(sys.argv)>1 and sys.argv[1] in PLABEL else "daily"
+    WINDOW = PWINDOW[PERIOD]; plabel = PLABEL[PERIOD]
     data=json.load(open(DATA)); stocks=data["stocks"]
     market, date = fetch_market([s["code"] for s in stocks])
     date = date or datetime.date.today().isoformat()
@@ -253,47 +269,77 @@ def main():
     if hits < MIN_OK or valued < MIN_OK:
         print(f"✗ 資料品質不足：現價命中 {hits}/{len(rows)}、可估值 {valued}/{len(rows)}（門檻 {MIN_OK}）。今日不發佈、不提交。")
         raise SystemExit(1)
-    # 異動 vs 前次
-    prev={}
-    if os.path.exists(STATE):
-        try: prev=json.load(open(STATE))
-        except Exception: prev={}
-    prev_sig=prev.get("signals",{}); changes=[]
-    new_buy=[r for r in rows if r["sig"]=="buy" and prev_sig.get(r["code"])!="buy"]
-    left_buy=[c for c,sg in prev_sig.items() if sg=="buy" and next((r for r in rows if r["code"]==c and r["sig"]=="buy"),None) is None]
-    if prev:
-        if new_buy: changes.append('🟢 新增估值偏低：'+("、".join(f'{r["name"]}({r["code"]})' for r in new_buy)))
-        if left_buy: changes.append('⬆️ 脫離估值偏低區：'+("、".join(left_buy)))
-        # 漲跌幅前3
-        moves=[]
+    # === 優化：valuations.json 供看板直接讀(免即時代理) ===
+    val={r["code"]:{"cheap":r["cheap"],"fair":r["fair"],"roe":r["roeNow"],"per":r["per"],"pbr":r["pbr"],
+                    "price":r["price"],"sig":r["sig"],"cons":r.get("cons"),"aroe":r.get("avgRoe")}
+         for r in rows if r["cheap"] is not None}
+    json.dump({"date":date,"v":val}, open(os.path.join(GEN,"valuations.json"),"w",encoding="utf-8"), ensure_ascii=False)
+    # === 對帳：市場推算ROE(PBR/PER) vs 會計ROE(財報),差異>25% 示警 ===
+    recon=[]
+    for r in rows:
+        acc=r.get("roeAcc") or {}; ay=sorted(acc.keys()); av=acc[ay[-1]] if ay else None
+        if av and av>0 and r.get("roeNow"):
+            df=abs(r["roeNow"]-av)/av
+            if df>0.35: recon.append({"code":r["code"],"name":r["name"],"mkt":round(r["roeNow"],1),"acc":round(av,1),"diff":round(df*100)})
+    recon.sort(key=lambda x:-x["diff"])
+    # === 歷史快照(週/月/季報變化比較用) ===
+    HIST=os.path.join(GEN,"history.json"); hist=[]
+    if os.path.exists(HIST):
+        try: hist=json.load(open(HIST))
+        except Exception: hist=[]
+    hist=[h for h in hist if h.get("date")!=date]
+    hist.append({"date":date,"prices":{r["code"]:r["price"] for r in rows if r["price"]},
+                 "sigs":{r["code"]:r["sig"] for r in rows}})
+    hist=sorted(hist,key=lambda h:h["date"])[-220:]
+    json.dump(hist, open(HIST,"w",encoding="utf-8"), ensure_ascii=False)
+    # === 變化比較：日報比前次;週/月/季報比 N 個交易日前(取自 history) ===
+    base=None
+    if PERIOD=="daily" and os.path.exists(STATE):
+        try: base=json.load(open(STATE))
+        except Exception: base=None
+    elif PERIOD!="daily":
+        i=len(hist)-1-WINDOW
+        if i>=0: base={"prices":hist[i]["prices"],"signals":hist[i]["sigs"],"date":hist[i]["date"]}
+    win_lbl={"daily":"前一交易日","weekly":"約一週前","monthly":"約一個月前","quarterly":"約一季前"}.get(PERIOD,"前次")
+    changes=[]
+    if base:
+        bsig=base.get("signals",{})
+        nb=[r for r in rows if r["sig"]=="buy" and bsig.get(r["code"])!="buy"]
+        lb=[c for c,sg in bsig.items() if sg=="buy" and next((r for r in rows if r["code"]==c and r["sig"]=="buy"),None) is None]
+        if nb: changes.append('🟢 新增估值偏低：'+("、".join(f'{r["name"]}({r["code"]})' for r in nb)))
+        if lb: changes.append('⬆️ 脫離估值偏低區：'+("、".join(lb)))
+        mv=[]
         for r in rows:
-            pp=prev.get("prices",{}).get(r["code"])
-            if pp and r["price"]: moves.append((((r["price"]-pp)/pp*100), r))
-        moves.sort(key=lambda t:-abs(t[0]))
-        if moves[:3]:
-            changes.append('📊 波動較大：'+("、".join(f'{r["name"]} {d:+.1f}%' for d,r in moves[:3])))
-    chg_html="<br>".join(changes) if changes else ("（首次發佈，建立基準）" if not prev else "今日無顯著異動。")
+            pp=base.get("prices",{}).get(r["code"])
+            if pp and r["price"]: mv.append((((r["price"]-pp)/pp*100), r))
+        mv.sort(key=lambda t:-abs(t[0]))
+        if mv[:5]: changes.append('📊 波動較大：'+("、".join(f'{r["name"]} {d:+.1f}%' for d,r in mv[:5])))
+    chg_html=(f"（對比 {base.get('date','—')}，{win_lbl}）<br>"+"<br>".join(changes)) if (base and changes) else ("（首次發佈，建立基準）" if not base else f"與{win_lbl}相比無顯著變化。")
     featured=next((r for r in sorted(rows,key=lambda r:r["disp"]) if r["sig"]=="buy"), None) or next((r for r in rows if r["disp"]==1), rows[0])
-    html=build_article(date, rows, chg_html, featured)
-    out=os.path.join(RES, f"{date}.html")
+    html=build_article(date, rows, chg_html, featured, recon, PERIOD)
+    suffix="" if PERIOD=="daily" else f"-{PERIOD}"; stub=f"{date}{suffix}"
+    out=os.path.join(RES, f"{stub}.html")
     open(out,"w",encoding="utf-8").write(html)
     rebuild_index()
-    json.dump({"date":date,"prices":{r["code"]:r["price"] for r in rows if r["price"]},
-               "signals":{r["code"]:r["sig"] for r in rows}}, open(STATE,"w"), ensure_ascii=False)
+    if PERIOD=="daily":
+        json.dump({"date":date,"prices":{r["code"]:r["price"] for r in rows if r["price"]},
+                   "signals":{r["code"]:r["sig"] for r in rows}}, open(STATE,"w",encoding="utf-8"), ensure_ascii=False)
     # 審核用：PR 摘要與日期（寫到 repo 根，不進 git；供 workflow 開草稿 PR）
     REPO_ROOT = os.path.dirname(RES)
     buys_sorted = sorted([r for r in rows if r["sig"]=="buy"], key=lambda r:r["disp"])
     nlow = sum(1 for r in rows if r["sig"]=="buy"); nfair = sum(1 for r in rows if r["sig"]=="fair")
     lines = [f"- #{r['disp']} {r['name']}({r['code']})　現價 {r['price']} / 便宜價 {r['cheap']}（{(r['price']-r['cheap'])/r['cheap']*100:+.1f}%）" for r in buys_sorted]
-    body = (f"## 每日研究草稿 · {date}\n\n"
-            f"**追蹤 {len(rows)} 檔　｜　🟢 估值偏低 {nlow} 檔　｜　🟡 估值合理 {nfair} 檔**\n\n"
+    nrecon=len(recon)
+    body = (f"## {plabel}研究草稿 · {date}\n\n"
+            f"**追蹤 {len(rows)} 檔　｜　🟢 估值偏低 {nlow} 檔　｜　🟡 估值合理 {nfair} 檔"
+            + (f"　｜　⚠️ 對帳待查 {nrecon} 檔" if nrecon else "") + "**\n\n"
             f"### 🟢 估值偏低觀察名單（現價 ≤ 歷史便宜價）\n"
             + ("\n".join(lines) if lines else "（今日無）") + "\n\n"
             "> ⚠️ 估值位階為歷史統計推算、**非投資建議**；「便宜」不代表值得買，基本面轉壞時可能是價值陷阱。\n\n"
             "---\n**審核方式**：看過上方摘要與預覽後 —— 滿意按 **Merge** 即公開發佈；不要按 **Close**（不會公開）。\n")
     open(os.path.join(REPO_ROOT, "pr_body.md"), "w", encoding="utf-8").write(body)
-    open(os.path.join(REPO_ROOT, "pr_date.txt"), "w", encoding="utf-8").write(date)
-    print(f"✓ 產生 {out}（估值偏低{nlow}檔，價格命中{sum(1 for r in rows if r['price'])}/{len(rows)}）")
+    open(os.path.join(REPO_ROOT, "pr_date.txt"), "w", encoding="utf-8").write(stub)
+    print(f"✓ 產生 {out}（{plabel}｜估值偏低{nlow}檔｜對帳待查{nrecon}檔｜價格命中{sum(1 for r in rows if r['price'])}/{len(rows)}）")
 
 if __name__=="__main__":
     main()
