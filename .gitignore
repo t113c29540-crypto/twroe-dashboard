@@ -2,3 +2,5 @@ vapid_private.pem
 vapid_private.der
 __pycache__/
 index.html.bak
+pr_body.md
+pr_date.txt

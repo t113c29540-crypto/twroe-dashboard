@@ -280,7 +280,20 @@ def main():
     rebuild_index()
     json.dump({"date":date,"prices":{r["code"]:r["price"] for r in rows if r["price"]},
                "signals":{r["code"]:r["sig"] for r in rows}}, open(STATE,"w"), ensure_ascii=False)
-    print(f"✓ 產生 {out}（估值偏低{sum(1 for r in rows if r['sig']=='buy')}檔，價格命中{sum(1 for r in rows if r['price'])}/{len(rows)}）")
+    # 審核用：PR 摘要與日期（寫到 repo 根，不進 git；供 workflow 開草稿 PR）
+    REPO_ROOT = os.path.dirname(RES)
+    buys_sorted = sorted([r for r in rows if r["sig"]=="buy"], key=lambda r:r["disp"])
+    nlow = sum(1 for r in rows if r["sig"]=="buy"); nfair = sum(1 for r in rows if r["sig"]=="fair")
+    lines = [f"- #{r['disp']} {r['name']}({r['code']})　現價 {r['price']} / 便宜價 {r['cheap']}（{(r['price']-r['cheap'])/r['cheap']*100:+.1f}%）" for r in buys_sorted]
+    body = (f"## 每日研究草稿 · {date}\n\n"
+            f"**追蹤 {len(rows)} 檔　｜　🟢 估值偏低 {nlow} 檔　｜　🟡 估值合理 {nfair} 檔**\n\n"
+            f"### 🟢 估值偏低觀察名單（現價 ≤ 歷史便宜價）\n"
+            + ("\n".join(lines) if lines else "（今日無）") + "\n\n"
+            "> ⚠️ 估值位階為歷史統計推算、**非投資建議**；「便宜」不代表值得買，基本面轉壞時可能是價值陷阱。\n\n"
+            "---\n**審核方式**：看過上方摘要與預覽後 —— 滿意按 **Merge** 即公開發佈；不要按 **Close**（不會公開）。\n")
+    open(os.path.join(REPO_ROOT, "pr_body.md"), "w", encoding="utf-8").write(body)
+    open(os.path.join(REPO_ROOT, "pr_date.txt"), "w", encoding="utf-8").write(date)
+    print(f"✓ 產生 {out}（估值偏低{nlow}檔，價格命中{sum(1 for r in rows if r['price'])}/{len(rows)}）")
 
 if __name__=="__main__":
     main()
