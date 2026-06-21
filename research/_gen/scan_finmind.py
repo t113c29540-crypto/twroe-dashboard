@@ -80,7 +80,7 @@ def main():
     cands = rk[:pool_n]
     scored, fail = [], 0
     for i, c in enumerate(cands):
-        by = per_history(c["code"]); time.sleep(0.3)
+        by = per_history(c["code"]); time.sleep(0.6)
         roes = [v["roe"] for v in by.values() if v.get("roe") is not None]
         if len(roes) < MIN_YEARS:
             if not by: fail += 1
@@ -91,6 +91,10 @@ def main():
                        "avg": round(statistics.mean(pos), 1) if pos else 0,
                        "min": round(min(pos), 1) if pos else 0, "byYear": by})
         if (i+1) % 25 == 0: print(f"  候選 {i+1}/{len(cands)} 命中{len(scored)} 失敗{fail}", flush=True)
+    # 品質關卡：命中不足或失敗率過高 → 不覆寫(避免限流時產出殘缺榜單污染後續)
+    if len(scored) < NEED or fail > len(cands)*0.3:
+        print(f"✗ 季重排資料品質不足：合格 {len(scored)}/{NEED}、抓取失敗 {fail}/{len(cands)}。不覆寫 data50.json（保留上一版）。")
+        raise SystemExit(1)
     scored.sort(key=lambda r: (-r["ratio"], -r["avg"]))
     top = scored[:NEED]
     for r in top:
@@ -98,8 +102,11 @@ def main():
     stocks = [{"rank": i, "disp": i, "code": r["code"], "name": r["name"], "mkt": r["mkt"],
                "cons": f'{r["gt15"]}/{r["n"]}', "avgRoe": r["avg"], "minRoe": r["min"],
                "roeAcc": r.get("roeAcc", {}), "byYear": r["byYear"]} for i, r in enumerate(top, 1)]
+    # 原子寫入：先寫 .tmp 再 replace，確保不會留下半成品
+    tmp = OUT + ".tmp"
     json.dump({"generated_from": "FinMind 市場推算ROE 季重排(候選池前%d)" % pool_n, "count": len(stocks), "stocks": stocks},
-              open(OUT, "w", encoding="utf-8"), ensure_ascii=False)
+              open(tmp, "w", encoding="utf-8"), ensure_ascii=False)
+    os.replace(tmp, OUT)
     print(f"\n✓ 季重排 → data50.json（{len(stocks)} 檔，候選{len(cands)} 命中{len(scored)} 失敗{fail}）")
     for s in stocks[:10]: print(f"   #{s['disp']:<3}{s['code']} {s['name'][:6]:<7}一致{s['cons']} 均{s['avgRoe']}")
 

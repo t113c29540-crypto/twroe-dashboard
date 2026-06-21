@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: 季重排前50（FinMind 候選池掃描，更新 data50.json）
-        run: python3 research/_gen/scan_finmind.py 150
+        run: python3 research/_gen/scan_finmind.py 100
       - name: 產生季研究草稿（用新前50）
         run: python3 research/_gen/gen_daily.py quarterly
       - name: 開草稿 PR（含新排行＋季報，合併才公開）

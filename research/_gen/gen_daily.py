@@ -127,7 +127,9 @@ def chart_valuation(rows):
 def chart_roe_bar(rows, n=15):
     top=sorted(rows,key=lambda r:-(r["avgRoe"] or 0))[:n]
     W,H,P=760,250,{"t":18,"r":12,"b":46,"l":30}
-    mx=max(r["avgRoe"] for r in top); iw=W-P["l"]-P["r"]; bw=iw/len(top)*0.66
+    mx=max((r["avgRoe"] or 0) for r in top) if top else 0
+    if mx<=0: return ""   # 防呆:全為0/None 時不畫(避免除以零)
+    iw=W-P["l"]-P["r"]; bw=iw/len(top)*0.66
     g=""
     for k in range(0,int(mx)+10,10):
         if k>mx+5: break
@@ -215,9 +217,9 @@ th{{color:{CC['mut']};font-weight:600}} td.l,th.l{{text-align:left}}
     s.append('<h2>④ 近16年平均 ROE（前15名）</h2><div class="card">'+chart_roe_bar(rows)+'</div>')
     if featured:
         s.append(f'<h2>⑤ ROE 趨勢快照：{esc(featured["name"])}（{featured["code"]}）</h2>')
-        s.append(f'<div class="card">{chart_roe_trend(featured)}<p class="note">金柱＝會計ROE推算（紅＝低於15%門檻）。一致性 {featured["cons"]}、近16年均 {featured["avgRoe"]:.1f}%。</p></div>')
+        s.append(f'<div class="card">{chart_roe_trend(featured)}<p class="note">金柱＝市場推算ROE（股價淨值比÷本益比，紅＝低於15%門檻）。一致性 {featured["cons"]}、平均 {featured["avgRoe"]:.1f}%。</p></div>')
     # 對帳(市場推算ROE vs 會計ROE)
-    s.append('<h2>⑦ 資料對帳（市場推算 ROE × 會計 ROE）</h2>')
+    s.append('<h2>⑥ 資料對帳（市場推算 ROE × 會計 ROE）</h2>')
     if recon:
         s.append(f'<div class="card"><p class="note">以下 {len(recon)} 檔，兩種獨立算法的 ROE 差異 &gt;35%，數字僅供參考、<b>待查</b>（常見於高股價淨值比股、財報時點差異，多為時點差非錯誤）。</p><table><tr><th class="l">股票</th><th>市場推算ROE</th><th>會計ROE</th><th>差異</th></tr>')
         for x in recon[:15]:
@@ -227,7 +229,7 @@ th{{color:{CC['mut']};font-weight:600}} td.l,th.l{{text-align:left}}
         s.append(f'<div class="card" style="color:{CC["down"]}">✓ 前50檔市場推算 ROE 與會計 ROE 大致一致（差異皆 ≤35%）。</div>')
     s.append(f'<p class="note">對帳方法：市場推算 ROE＝股價淨值比÷本益比；會計 ROE＝年度稅後淨利÷年末股東權益（皆取自 FinMind 不同資料集，獨立計算）。</p>')
     # 方法
-    s.append(f"""<h2>⑥ 研究方法</h2><div class="card" style="font-size:13px;line-height:1.8">
+    s.append(f"""<h2>⑦ 研究方法</h2><div class="card" style="font-size:13px;line-height:1.8">
 <b>選股：</b>近16年（2010–2025）ROE 年年＞15% 的長青股，以「達標一致性」排序、均ROE 次之。<br>
 <b>ROE：</b>＝股價淨值比 ÷ 本益比（＝每股盈餘／每股淨值），資料取自 TWSE／TPEx 官方每年年底全市場本益比與股價淨值比；某年無本益比＝該年虧損／無盈餘，計為未達標（修正景氣循環股偏誤）。<br>
 <b>估值：</b>三法（本益比／股價淨值比）歷史百分位推算便宜價（20%）與合理價（50%）。<br>
@@ -274,7 +276,7 @@ def main():
                     "price":r["price"],"sig":r["sig"],"cons":r.get("cons"),"aroe":r.get("avgRoe")}
          for r in rows if r["cheap"] is not None}
     json.dump({"date":date,"v":val}, open(os.path.join(GEN,"valuations.json"),"w",encoding="utf-8"), ensure_ascii=False)
-    # === 對帳：市場推算ROE(PBR/PER) vs 會計ROE(財報),差異>25% 示警 ===
+    # === 對帳：市場推算ROE(PBR/PER) vs 會計ROE(財報),差異>35% 示警 ===
     recon=[]
     for r in rows:
         acc=r.get("roeAcc") or {}; ay=sorted(acc.keys()); av=acc[ay[-1]] if ay else None
@@ -301,13 +303,14 @@ def main():
         i=len(hist)-1-WINDOW
         if i>=0: base={"prices":hist[i]["prices"],"signals":hist[i]["sigs"],"date":hist[i]["date"]}
     win_lbl={"daily":"前一交易日","weekly":"約一週前","monthly":"約一個月前","quarterly":"約一季前"}.get(PERIOD,"前次")
+    nmmap={r["code"]:r["name"] for r in rows}
     changes=[]
     if base:
         bsig=base.get("signals",{})
         nb=[r for r in rows if r["sig"]=="buy" and bsig.get(r["code"])!="buy"]
         lb=[c for c,sg in bsig.items() if sg=="buy" and next((r for r in rows if r["code"]==c and r["sig"]=="buy"),None) is None]
         if nb: changes.append('🟢 新增估值偏低：'+("、".join(f'{r["name"]}({r["code"]})' for r in nb)))
-        if lb: changes.append('⬆️ 脫離估值偏低區：'+("、".join(lb)))
+        if lb: changes.append('⬆️ 脫離估值偏低區：'+("、".join(f'{nmmap.get(c,c)}({c})' for c in lb)))
         mv=[]
         for r in rows:
             pp=base.get("prices",{}).get(r["code"])
