@@ -142,7 +142,7 @@
 
 <div class="marquee"><div class="mq-track" id="mqTrack">📰 載入即時新聞中…</div></div>
 
-<div class="disc">⚠️ 報價/五檔/量來自證交所公開資料、經第三方代理,<b>可能延遲、盤後為前收</b>。本頁<b>不自動下單</b>;下單請自行於券商App確認。新聞來自 Google 新聞。非投資建議。</div>
+<div class="disc">⚠️ 報價/五檔/量來自證交所公開資料、經第三方代理,<b>可能延遲、盤後為前收</b>。本頁<b>不連券商、不下單</b>;「模擬持有」純本機記錄(localStorage)、不上傳、不記錄到雲端。新聞來自 Google 新聞。<b>非投資建議。</b></div>
 
 <div class="wrap">
   <div class="filterrow" id="filters"></div>
@@ -150,18 +150,20 @@
 </div>
 
 <footer>
-  <a href="research/" style="display:inline-block;margin-bottom:10px;color:#1a1407;background:var(--gold);padding:8px 18px;border-radius:9px;font-weight:700;text-decoration:none">📑 每日研究圖文（自動更新）</a><br>
+  <a href="research/" style="display:inline-block;margin:0 4px 10px;color:#1a1407;background:var(--gold);padding:8px 16px;border-radius:9px;font-weight:700;text-decoration:none">📑 每日研究（審核制）</a><a href="manual.html" style="display:inline-block;margin:0 4px 10px;color:var(--goldlt);border:1px solid var(--gold);padding:8px 16px;border-radius:9px;font-weight:700;text-decoration:none">📖 操作手冊</a><br>
   資料:證交所TWSE/TPEx即時 ｜ 估值(便宜/合理價)為歷史本益比/淨值比/殖利率推算 ｜ ROE近15年均、IRR為20年含配股<br>
   <b>本工具為數據彙整與下單輔助,非投資建議,盈虧自負。</b>
 </footer>
 
-<!-- 下單 modal -->
-<div class="mask" id="omask"><div class="modal">
-  <h3 id="oTitle">下單確認</h3>
-  <div style="font-size:12px;color:var(--mut)">請於元大證券App以憑證登入,<b style="color:var(--gold)">親自核對與確認</b>:</div>
-  <div class="ticket" id="oTicket"></div>
-  <div class="warn">本頁無法、也不會自動送出委託。價格瞬息萬變,請自行確認後再送出。</div>
-  <div class="mbtns"><a class="go" id="oGo" href="#" target="_blank" rel="noopener">📲 開啟元大下單</a><button class="cancel" onclick="closeM('omask')">取消</button></div>
+<!-- 模擬持有 modal(純本機,不連券商) -->
+<div class="mask" id="smask"><div class="modal">
+  <h3 id="sTitle">模擬持有</h3>
+  <div style="font-size:12px;color:var(--mut)">純本機<b style="color:var(--gold)">長期模擬</b>：不連券商、不下單、不上傳、不記錄到雲端（僅存在本瀏覽器）。</div>
+  <div class="ticket" id="sTicket"></div>
+  <div style="display:flex;align-items:center;gap:8px;margin:10px 0"><span style="font-size:13px;color:var(--mut)">股數</span>
+    <input id="sShares" inputmode="numeric" value="1000" style="flex:1;background:#0e1726;border:1px solid var(--line);border-radius:8px;color:var(--tx);padding:9px;font-size:14px"></div>
+  <div class="warn">以現價為模擬成本價；模擬僅供研究紀錄、非投資建議。</div>
+  <div class="mbtns"><button class="go" onclick="confirmSim()">📝 加入模擬持有</button><button class="cancel" onclick="closeM('smask')">取消</button></div>
 </div></div>
 <!-- 新聞 modal -->
 <div class="mask" id="nmask"><div class="modal">
@@ -319,6 +321,7 @@ async function renderPerf(){
 function render(){
   if(filter==='perf'){ renderPerf(); return; }
   if(filter==='strat'){ renderStrat(); return; }
+  if(filter==='sim'){ renderSim(); return; }
   const list=$("#list");list.innerHTML="";
   const longList=LONGRANK().slice(0,topN);
   const sections=[
@@ -376,7 +379,7 @@ function cardEl(d){
       <button onclick="toggle5('${d.code}')">📋 五檔</button>
       <button onclick="toggleChart('${d.code}')">📈 走勢</button>
       <button onclick="openNews('${d.code}')">📰 新聞</button>
-      ${d.grp==='watch'?`<button class="rm" onclick="rmStock('${d.code}')">✕</button>`:`<button class="ord" onclick="openOrder('${d.code}')">📲 下單</button>`}
+      ${d.grp==='watch'?`<button class="rm" onclick="rmStock('${d.code}')">✕</button>`:`<button class="ord" onclick="openSim('${d.code}')">📝 模擬</button>`}
     </div>
     ${(typeof SERIES!=='undefined'&&SERIES[d.code])?`<button class="ana" onclick="openAnalysis('${d.code}')">\ud83d\udcca 20年深度分析 · 河流圖/ROE/定期定額/策略</button>`:''}
     <div class="panel ${open5[d.code]?'open':''}" id="p5_${d.code}">${open5[d.code]?order5(d):''}</div>
@@ -626,16 +629,35 @@ function checkAlerts(){if(!alertOn)return;ANALYZED.forEach(d=>{
 function toggleAuto(){autoOn=!autoOn;$("#autoBtn").className="btn"+(autoOn?" on":"");$("#autoBtn").textContent="⏱ 自動:"+(autoOn?"開":"關");loop();}
 function loop(){clearInterval(timer);if(autoOn)timer=setInterval(()=>{if(marketOpen())refresh();else setStatus();},20000);}
 
-// ===== 下單輔助 =====
-function openOrder(code){const d=byCode(code);$("#oTitle").textContent=`下單確認 — ${d.name} (${d.code})`;
-  const limit=Math.min(d.price,d.cheap||d.price);
-  $("#oTicket").innerHTML=`<div><span>股票</span><b>${d.name} ${d.code}</b></div><div><span>現價</span><b>${d.price}</b></div>
-    ${d.cheap?`<div><span>便宜價</span><b>${d.cheap}</b></div>`:''}<div><span>參考限價</span><b>${limit}</b></div><div><span>張數</span><b>由你決定</b></div>`;
-  $("#oGo").href="https://www.yuanta.com.tw/eYuanta/securities";$("#omask").classList.add("show");}
+// ===== 長期模擬持有(純本機 localStorage,不連券商/不上傳/不記錄到雲端) =====
+let SIM=JSON.parse(localStorage.getItem('twroe_sim')||'[]'),simCode=null;
+function saveSim(){localStorage.setItem('twroe_sim',JSON.stringify(SIM));}
+function simDate(){const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');}
+function openSim(code){const d=byCode(code);if(!d)return;simCode=code;
+  $("#sTitle").textContent=`模擬持有 — ${d.name} (${d.code})`;
+  $("#sTicket").innerHTML=`<div><span>股票</span><b>${d.name} ${d.code}</b></div><div><span>現價(模擬成本)</span><b>${d.price||'—'}</b></div>${d.cheap?`<div><span>便宜價</span><b>${d.cheap}</b></div>`:''}`;
+  $("#sShares").value=1000;$("#smask").classList.add("show");}
+function confirmSim(){const d=byCode(simCode),sh=Math.max(1,parseInt($("#sShares").value)||0);
+  if(!d||!d.price){alert('現價未到,稍後再試');return;}
+  SIM.push({code:d.code,name:d.name,mkt:d.mkt,buy:d.price,shares:sh,date:simDate()});saveSim();
+  closeM('smask');alert(`已加入模擬持有(純本機)：${d.name} ${sh} 股 @ ${d.price}`);if(filter==='sim')renderSim();}
+function rmSim(i){SIM.splice(i,1);saveSim();renderSim();}
+function renderSim(){const list=$("#list");
+  if(!SIM.length){list.innerHTML='<div class="sec">💼 我的模擬組合</div><div style="color:var(--mut);text-align:center;padding:24px;line-height:1.7">尚無模擬持有。<br>在任一股票卡片按「📝 模擬」即可加入。<br><b>純本機(localStorage)、不上傳、不記錄</b>，清除瀏覽器即消失。</div>';return;}
+  let tc=0,tv=0,rows='';
+  SIM.forEach((h,i)=>{const cur=(byCode(h.code)?.price)||h.buy,cost=h.buy*h.shares,val=cur*h.shares;tc+=cost;tv+=val;
+    const ret=(cur-h.buy)/h.buy*100,c=cls(ret);
+    rows+=`<div class="card"><div class="crow"><div><div class="name">${h.name}<small>${h.code}</small></div>
+      <div class="meta" style="margin-top:5px"><span>${h.date}</span><span>成本 <b>${h.buy}</b></span><span>${h.shares}股</span><span>現價 <b>${cur}</b></span></div></div>
+      <div class="px"><div class="v ${c}">${ret>=0?'+':''}${ret.toFixed(1)}%</div><div class="chg ${c}">${val-cost>=0?'+':''}${Math.round(val-cost).toLocaleString('en')}</div>
+      <button class="rm" style="margin-top:6px" onclick="rmSim(${i})">移除</button></div></div></div>`;});
+  const tr=tc?(tv-tc)/tc*100:0,tcl=cls(tr);
+  list.innerHTML=`<div class="sec">💼 我的模擬組合 ｜ ${SIM.length} 檔 ｜ 總報酬 <span class="${tcl}">${tr>=0?'+':''}${tr.toFixed(1)}%</span></div>
+    <div class="card" style="text-align:center;color:var(--mut);font-size:12px">總成本 ${Math.round(tc).toLocaleString('en')} → 現值 ${Math.round(tv).toLocaleString('en')}　·　純本機模擬、不上傳/不記錄</div>`+rows;}
 function closeM(id){$("#"+id).classList.remove("show");}
-['omask','nmask','pmask','amask'].forEach(id=>$("#"+id).addEventListener("click",e=>{if(e.target.id===id)closeM(id);}));
+['smask','nmask','pmask','amask'].forEach(id=>{const el=$("#"+id);if(el)el.addEventListener("click",e=>{if(e.target.id===id)closeM(id);});});
 
-const FILTERS=[["all","全部"],["buy","🟢 估值偏低"],["long","長青排行"],["star","注目"],["watch","⭐ 自選"],["perf","📈 回測"],["strat","🧭 估值口徑"]];
+const FILTERS=[["all","全部"],["buy","🟢 估值偏低"],["long","長青排行"],["star","注目"],["watch","⭐ 自選"],["sim","💼 模擬"],["perf","📈 回測"],["strat","🧭 估值口徑"]];
 function buildFilters(){const f=$("#filters");FILTERS.forEach(([k,t])=>{const c=document.createElement("div");c.className="chip"+(k==="all"?" sel":"");c.textContent=t;
   c.onclick=()=>{filter=k;[...f.children].forEach(x=>x.classList.remove("sel"));c.classList.add("sel");render();};f.appendChild(c);});}
 
@@ -819,7 +841,7 @@ function openAnalysis(code){
    <div class="anasec">💰 定期定額 vs 單筆（每年投入1萬，共${r?r.nYears:'—'}年）</div>${dcaSVG(s)}
    <div class="anastat">${r?`單筆 投入${(r.cap/10000).toFixed(0)}萬→${(r.lumpFinal/10000).toFixed(0)}萬(${fmtMoneyX(r.lumpX)})　|　定額 投入${(r.dcaCost_/10000).toFixed(0)}萬→${(r.dcaFinal/10000).toFixed(0)}萬(${fmtMoneyX(r.dcaX)})　|　最大回撤 <span style="color:${CC.up}">-${r.mdd.toFixed(0)}%</span>(${r.mddLabel})`:''}</div>
    <div class="anasec">🧭 估值位階與風險提醒</div>${strategyHTML(s)}
-   <div class="mbtns"><button class="go" onclick="closeM('amask');if(typeof openOrder==='function')openOrder('${code}')">📲 帶入元大下單</button><button class="cancel" onclick="closeM('amask')">關閉</button></div>
+   <div class="mbtns"><button class="go" onclick="closeM('amask');if(typeof openSim==='function')openSim('${code}')">📝 加入模擬持有</button><button class="cancel" onclick="closeM('amask')">關閉</button></div>
    <div class="anadisc">資料：證交所/櫃買逐年高低價＋FinMind EPS/配息＋會計ROE。回測為年資料近似、未計手續費與稅，<b>非投資建議，盈虧自負</b>。</div>`;
   m.classList.add('show');
 }

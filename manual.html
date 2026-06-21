@@ -1,0 +1,69 @@
+<!DOCTYPE html><html lang="zh-Hant"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>操作手冊 · 台股高ROE長青股看板</title>
+<style>
+:root{--gold:#C9A227;--goldlt:#E8C75A;--bg:#0E1726;--card:#172539;--line:#26384f;--tx:#E8ECF3;--mut:#8A97AC;--up:#E0403A;--down:#22A06B}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.75;font-size:15px}
+.wrap{max-width:820px;margin:0 auto;padding:20px 16px 64px}
+h1{font-size:22px;color:var(--gold);margin:6px 0 2px}
+h2{font-size:16.5px;color:var(--goldlt);border-left:3px solid var(--gold);padding-left:9px;margin:26px 0 8px}
+.sub{color:var(--mut);font-size:13px} a{color:var(--goldlt)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 15px;margin:8px 0}
+table{width:100%;border-collapse:collapse;font-size:13px} td,th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--mut)} code{background:#0e1726;border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:12.5px}
+.warn{background:#3a1410;border:1px solid #7a2a22;color:#e8a79e;border-radius:10px;padding:11px 14px;line-height:1.7;font-size:13.5px;margin:10px 0}
+ul{padding-left:19px} li{margin-bottom:5px}
+.pill{display:inline-block;padding:1px 8px;border-radius:7px;font-weight:700;font-size:12.5px}
+.g{color:#48d39a}.y{color:var(--goldlt)}.r{color:#e8857a}
+.foot{color:var(--mut);font-size:11.5px;border-top:1px solid var(--line);margin-top:26px;padding-top:12px;line-height:1.7}
+</style></head><body><div class="wrap">
+<p class="sub"><a href="index.html">← 回行動看板</a> ｜ <a href="research/">📑 每日研究</a></p>
+<h1>📖 操作手冊</h1>
+<p class="sub">台股高 ROE 長青股看板 — 怎麼用、每個數字什麼意思、有哪些限制。<b>本工具為數據彙整與教育用途，非投資建議。</b></p>
+
+<h2>一、這是什麼</h2>
+<div class="card">把台股「近16年 ROE 年年大於 15%」的長青股挑出來、排名，並用歷史估值區間判斷現在<b>相對</b>便宜或貴。資料全部來自公開來源，計算與圖表由程式自動產生。<br><b>它能幫你：</b>篩出長期高股東報酬率的公司、看它現在落在自己歷史的什麼估值位階。<br><b>它不能幫你：</b>預測股價、保證報酬、告訴你「該不該買」。</div>
+
+<h2>二、每個標籤/數字怎麼看</h2>
+<div class="card"><table>
+<tr><th>標籤</th><th>意思</th></tr>
+<tr><td><span class="pill g">🟢 估值偏低</span></td><td>現價 ≤ 該股「歷史便宜價」。只代表<b>相對它自己過去便宜</b>，<u>不代表值得買</u>。</td></tr>
+<tr><td><span class="pill y">🟡 估值合理</span></td><td>現價落在歷史便宜價～合理價之間。</td></tr>
+<tr><td><span class="pill r">🔴 估值偏高</span></td><td>現價高於歷史合理價。</td></tr>
+<tr><td><b>達標 16/16</b></td><td>近16年裡有幾年 ROE 大於 15%。16/16＝年年達標（最嚴格的長青）；14/16＝其中2年沒到。</td></tr>
+<tr><td><b>均ROE</b></td><td>達標年份的平均股東權益報酬率。越高代表賺錢效率越好。</td></tr>
+<tr><td><b>便宜價 / 合理價</b></td><td>用該股<b>自己過去16年</b>的本益比、股價淨值比，取低檔(20百分位)＝便宜價、中位(50百分位)＝合理價。<b>是統計位階，不是目標價、更不是進出場指示。</b></td></tr>
+<tr><td><b>本益比河流圖</b></td><td>白線是股價，色帶是 11/16/22/30 倍 EPS。股價落在<span class="g">綠帶</span>＝本益比偏低、<span class="r">紅帶</span>＝偏高。</td></tr>
+<tr><td><b>殖利率河流圖</b></td><td>色帶是 2/3.5/5/7% 殖利率對應的價位。股價在<span class="g">綠帶</span>＝殖利率高(相對便宜)。</td></tr>
+<tr><td><b>ROE 趨勢</b></td><td>逐年 ROE 柱狀；<span class="r">紅柱</span>＝該年低於 15% 門檻。</td></tr>
+<tr><td><b>MDD(最大回撤)</b></td><td>歷史上從高點跌到低點的最大幅度。本榜個股 MDD 達 <b>55–88%</b>，比 0050 的 -57% 更兇——這是「波動風險」的真實大小。</td></tr>
+<tr><td><b>定期定額 vs 單筆</b></td><td>近20年回測：每年固定投入 vs 一次投入的成長倍數（含息還原、未計手續費與稅，僅供研究）。</td></tr>
+</table></div>
+
+<h2>三、資料怎麼來、ROE 怎麼算</h2>
+<div class="card">
+<b>資料來源（皆公開）：</b>證交所 TWSE、櫃買中心 TPEx 的每年年底全市場本益比與股價淨值比；逐年 EPS／配息與部分驗證用 <a href="https://finmindtrade.com" target="_blank" rel="noopener">FinMind</a>。<br>
+<b>ROE 怎麼算：</b><code>ROE ≈ 股價淨值比 ÷ 本益比</code>（＝每股盈餘 ÷ 每股淨值）。<br>
+<b style="color:var(--goldlt)">⚠ 重要：這是用市場價格反推的「估算 ROE」，不是公司財報上查核過的數字</b>，兩者通常接近但可能差幾個百分點。某年沒有本益比資料＝視為當年虧損／無盈餘，計為未達標（用來修正景氣循環股「只挑好年份」的偏誤）。
+</div>
+
+<h2>四、最重要：限制與風險（請務必看）</h2>
+<div class="warn">
+1. <b>「便宜」可能是價值陷阱。</b>便宜價只看「比它自己過去便宜」。如果一家公司基本面正在變壞（ROE 一路往下），它會「便宜→更便宜」，照買可能一路套。例：某隱形眼鏡股距便宜價 −48%，是因為它從 ROE 30%+ 衰退到剩個位數，不是撿到便宜。<br><br>
+2. <b>ROE 是估算、不是財報數字</b>（見上）。<br><br>
+3. <b>景氣循環股會混進來。</b>記憶體、設備、IC 設計等，靠多頭年份把平均拉高，名單裡已標註。<br><br>
+4. <b>KY/F 股</b>是外國註冊來台上市公司，治理與資訊揭露和本國股不同，已標註。<br><br>
+5. <b>個股波動極大（MDD 55–88%）</b>，務必分散、控制單一部位。<br><br>
+6. <b>資料可能有缺漏或延遲</b>；某天資料不足時系統會<b>不發佈</b>當天研究（寧缺勿錯）。<br><br>
+7. <b>本工具不構成任何投資建議</b>，作者非證券投資顧問，所有決策與盈虧由你自己負責。
+</div>
+
+<h2>五、模擬持有怎麼用</h2>
+<div class="card">在任何股票卡片按 <b>「📝 模擬」</b> → 輸入股數 → 以<b>現價</b>當模擬成本記錄下來。到「<b>💼 模擬</b>」分頁看每檔與整體的模擬報酬。<br>
+<b style="color:var(--goldlt)">純本機：</b>只存在你這台瀏覽器（localStorage），<b>不連券商、不下單、不上傳、不記錄到任何雲端</b>；清除瀏覽器資料就會消失。純粹讓你長期追蹤「如果當時記下來，現在會怎樣」，作為研究紀錄。</div>
+
+<h2>六、每日研究與審核流程</h2>
+<div class="card">系統每個交易日自動產生一篇研究圖文，但<b>不會直接公開</b>——而是開一個<b>草稿（Pull Request）</b>等本人審核：看過摘要與預覽，<b>同意才合併公開</b>、不同意就丟棄。確保不會在無人看管下發出錯誤或不當內容。</div>
+
+<div class="foot">資料來源：TWSE／TPEx／FinMind 公開資料。本手冊與本看板由程式自動彙整生成，<b>僅供研究與教育，非投資建議，盈虧自負</b>。估值為歷史統計推算、非保證；ROE 為市場價格反推之估算值。<br>專案：台股高ROE長青股看板</div>
+</div></body></html>
