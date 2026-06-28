@@ -17,6 +17,8 @@ jobs:
   rerank:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    env:
+      FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - name: 季重排前50（FinMind 候選池掃描，更新 data50.json）

@@ -6,8 +6,9 @@
 """
 import json, os, subprocess, statistics, glob, time, datetime, sys
 
-PLABEL = {"daily":"每日","weekly":"每週","monthly":"每月","quarterly":"每季"}
-PWINDOW = {"daily":1,"weekly":5,"monthly":20,"quarterly":60}
+PLABEL = {"daily":"每日","weekly":"每週","monthly":"每月","quarterly":"每季","yearly":"每年"}
+PWINDOW = {"daily":1,"weekly":5,"monthly":20,"quarterly":60,"yearly":240}
+FM_TOKEN = os.environ.get("FINMIND_TOKEN", "")   # 有 token 額度大;無則免費層
 
 GEN = os.path.dirname(os.path.abspath(__file__))
 RES = os.path.dirname(GEN)                      # research/
@@ -33,7 +34,7 @@ FINMIND = "https://api.finmindtrade.com/api/v4/data"
 
 def fm(dataset, code, start, end, tries=4):
     """FinMind 取單檔資料（全球可達；GitHub 雲端用此，TWSE/TPEx 官網會擋雲端IP）"""
-    url = f"{FINMIND}?dataset={dataset}&data_id={code}&start_date={start}&end_date={end}"
+    url = f"{FINMIND}?dataset={dataset}&data_id={code}&start_date={start}&end_date={end}" + (f"&token={FM_TOKEN}" if FM_TOKEN else "")
     for t in range(tries):
         txt = curl(url, tries=1)
         try:

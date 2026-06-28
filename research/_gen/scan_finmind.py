@@ -17,7 +17,10 @@ MIN_YEARS = 10
 NEED = 50
 
 def fm(dataset, code, start, end, tries=4):
-    q = urllib.parse.urlencode({"dataset": dataset, "data_id": code, "start_date": start, "end_date": end})
+    params = {"dataset": dataset, "data_id": code, "start_date": start, "end_date": end}
+    tok = os.environ.get("FINMIND_TOKEN", "")
+    if tok: params["token"] = tok   # 有 token 額度大,季重排不撞限流
+    q = urllib.parse.urlencode(params)
     for t in range(tries):
         try:
             out = subprocess.run(["curl", "-s", "-m", "30", f"{FINMIND}?{q}"], capture_output=True, text=True, timeout=40)
