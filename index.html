@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>台股高ROE 行動看板</title>
+<title>全球高ROE 行動看板</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#14233A">
@@ -124,7 +124,7 @@
 <body>
 <header>
   <div class="htop">
-    <div class="brand"><span class="logo"><i style="height:7px"></i><i style="height:11px"></i><i style="height:15px"></i></span><b>台股高ROE</b> 行動看板</div>
+    <div class="brand"><span class="logo"><i style="height:7px"></i><i style="height:11px"></i><i style="height:15px"></i></span><b>全球高ROE</b> 行動看板</div>
     <button class="btn g" style="flex:none;padding:7px 12px" onclick="refresh(true)">↻ 更新</button>
   </div>
   <div class="status"><span><span class="dot" id="mdot"></span> <span id="mstat">載入中…</span></span><span id="upd">—</span></div>
@@ -658,7 +658,7 @@ function renderSim(){const list=$("#list");
 function closeM(id){$("#"+id).classList.remove("show");}
 ['smask','nmask','pmask','amask'].forEach(id=>{const el=$("#"+id);if(el)el.addEventListener("click",e=>{if(e.target.id===id)closeM(id);});});
 
-const FILTERS=[["all","全部"],["buy","🟢 估值偏低"],["long","長青排行"],["star","注目"],["watch","⭐ 自選"],["sim","💼 模擬"],["global","🌍 全球"],["perf","📈 回測"],["strat","🧭 估值口徑"]];
+const FILTERS=[["all","🇹🇼 台股"],["buy","🟢 估值偏低"],["long","長青排行"],["star","注目"],["watch","⭐ 自選"],["sim","💼 模擬"],["global","🌍 全球"],["perf","📈 回測"],["strat","🧭 估值口徑"]];
 function buildFilters(){const f=$("#filters");FILTERS.forEach(([k,t])=>{const c=document.createElement("div");c.className="chip"+(k==="all"?" sel":"");c.textContent=t;
   c.onclick=()=>{filter=k;[...f.children].forEach(x=>x.classList.remove("sel"));c.classList.add("sel");render();};f.appendChild(c);});}
 

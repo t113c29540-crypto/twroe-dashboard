@@ -175,7 +175,7 @@ def build_article(date, rows, changes, featured, recon=None, period="daily"):
     fairs=[r for r in rows if r["sig"]=="fair"]
     def sigtag(s): return {"buy":('🟢 估值偏低',CC["down"]),"fair":('🟡 估值合理',CC["goldlt"]),"exp":('🔴 估值偏高',CC["up"]),"na":('—',CC["mut"])}[s]
     head=f"""<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>台股高ROE長青股 · {plabel}研究 {date}</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>全球股市高ROE長青股 · {plabel}研究 {date}</title>
 <style>body{{margin:0;background:{CC['bg']};color:{CC['tx']};font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.7;font-size:15px}}
 .wrap{{max-width:820px;margin:0 auto;padding:20px 16px 60px}}
 h1{{font-size:22px;color:{CC['gold']};margin:6px 0 2px}} h2{{font-size:16px;color:{CC['goldlt']};border-left:3px solid {CC['gold']};padding-left:9px;margin:26px 0 10px}}
@@ -189,7 +189,7 @@ th{{color:{CC['mut']};font-weight:600}} td.l,th.l{{text-align:left}}
 .kpi{{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}} .kpi div{{background:{CC['card']};border:1px solid {CC['line']};border-radius:10px;padding:8px 14px;font-size:13px}} .kpi b{{font-size:18px;color:{CC['goldlt']};display:block}}
 </style></head><body><div class="wrap">
 <p class="sub"><a href="index.html">← 研究索引</a> ｜ <a href="../index.html">回行動看板</a></p>
-<h1>台股高 ROE 長青股 · {plabel}研究</h1>
+<h1>全球股市高 ROE 長青股 · {plabel}研究</h1>
 <p class="sub">交易日 {date}　｜　資料：TWSE／TPEx 官方開放資料（ROE＝股價淨值比 ÷ 本益比）　｜　本文為數據彙整，非投資建議</p>
 <div class="kpi"><div>追蹤長青股<b>{len(rows)} 檔</b></div><div>🟢估值偏低<b>{len(buys)} 檔</b></div><div>🟡估值合理<b>{len(fairs)} 檔</b></div>{f'<div>⚠️對帳待查<b>{len(recon)} 檔</b></div>' if recon else ''}</div>
 """
@@ -250,18 +250,18 @@ th{{color:{CC['mut']};font-weight:600}} td.l,th.l{{text-align:left}}
 <b>ROE：</b>＝股價淨值比 ÷ 本益比（＝每股盈餘／每股淨值），資料取自 TWSE／TPEx 官方每年年底全市場本益比與股價淨值比；某年無本益比＝該年虧損／無盈餘，計為未達標（修正景氣循環股偏誤）。<br>
 <b>估值：</b>三法（本益比／股價淨值比）歷史百分位推算便宜價（20%）與合理價（50%）。<br>
 <b>估值口徑（非進出場指示）：</b>便宜價／合理價為統計位階；此類股的「便宜」前提是 ROE 持續＞15%，ROE 跌破門檻時所謂便宜可能是<b>價值陷阱</b>。個股最大回撤可達 55–88%，須注意集中度。本研究僅供教育，不構成任何買賣建議。</div>""")
-    foot=f"""<div class="foot">本文由程式自動彙整 TWSE／TPEx 官方公開資料生成（ROE＝股價淨值比÷本益比），<b>僅供研究與教育，非投資建議，盈虧自負</b>。估值為歷史統計推算、非保證。資料可能因官方更新或停牌而有缺漏。<br>產生時間（交易日）：{date}　｜　專案：台股高ROE長青股看板</div></div></body></html>"""
+    foot=f"""<div class="foot">本文由程式自動彙整 TWSE／TPEx 官方公開資料生成（ROE＝股價淨值比÷本益比），<b>僅供研究與教育，非投資建議，盈虧自負</b>。估值為歷史統計推算、非保證。資料可能因官方更新或停牌而有缺漏。<br>產生時間（交易日）：{date}　｜　專案：全球股市高ROE長青股看板</div></div></body></html>"""
     return head+"\n".join(s)+foot
 
 def rebuild_index():
     files=sorted([os.path.basename(f) for f in glob.glob(os.path.join(RES,"2*.html"))], reverse=True)
     items="".join(f'<li><a href="{f}">{f[:-5]}</a> · 每日研究</li>' for f in files)
     html=f"""<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股高ROE長青股 · 研究索引</title><style>body{{margin:0;background:{CC['bg']};color:{CC['tx']};font-family:-apple-system,"PingFang TC",sans-serif;line-height:1.8}}
+<title>全球股市高ROE長青股 · 研究索引</title><style>body{{margin:0;background:{CC['bg']};color:{CC['tx']};font-family:-apple-system,"PingFang TC",sans-serif;line-height:1.8}}
 .wrap{{max-width:760px;margin:0 auto;padding:24px 16px 60px}} h1{{color:{CC['gold']};font-size:22px}} a{{color:{CC['goldlt']};text-decoration:none}}
 ul{{list-style:none;padding:0}} li{{background:{CC['card']};border:1px solid {CC['line']};border-radius:10px;padding:11px 14px;margin:7px 0}}
 .note{{color:{CC['mut']};font-size:12px}}</style></head><body><div class="wrap">
-<p class="note"><a href="../index.html">← 回行動看板</a></p><h1>📑 台股高ROE長青股 · 每日研究</h1>
+<p class="note"><a href="../index.html">← 回行動看板</a></p><h1>📑 全球股市高ROE長青股 · 每日研究</h1>
 <p class="note">每日由 GitHub Actions 自動產生（TWSE／TPEx 官方資料，ROE＝股價淨值比÷本益比）。非投資建議。</p>
 <ul>{items or '<li class="note">尚無文章</li>'}</ul></div></body></html>"""
     open(os.path.join(RES,"index.html"),"w",encoding="utf-8").write(html)
