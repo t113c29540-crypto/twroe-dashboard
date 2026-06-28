@@ -10,16 +10,31 @@ import json, os, datetime
 GEN = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(GEN, "global.json")
 
-# 全球觀察名單(可自行增刪)：美股大型權值＋歐股代表＋台積電ADR
+# 全球觀察名單(可自行增刪)：各市場前10大型權值股＋市場ETF。(code, 地區, 類型)
+# 類型 stock=個股 etf=市場/ETF。Yahoo 後綴：.SW瑞士 .PA法國 .DE德國 .L倫敦 .AS荷蘭
+#   .T東京 .KS首爾 .HK香港 .TW台灣 .TO多倫多 .AX雪梨
 TICKERS = [
-    # 美股
-    ("AAPL", "美"), ("MSFT", "美"), ("NVDA", "美"), ("GOOGL", "美"), ("AMZN", "美"),
-    ("META", "美"), ("AVGO", "美"), ("LLY", "美"), ("V", "美"), ("MA", "美"),
-    ("COST", "美"), ("UNH", "美"), ("JPM", "美"), ("HD", "美"), ("ADBE", "美"),
-    ("TSM", "美ADR"),
-    # 歐股(Yahoo 後綴：.SW瑞士 .PA法國 .CO哥本哈根 .AS荷蘭 .L倫敦)
-    ("ASML", "歐"), ("NVO", "歐ADR"), ("NESN.SW", "歐"), ("MC.PA", "歐"),
-    ("SAP", "歐"), ("AZN", "歐ADR"),
+    # 🇺🇸 美股前10+
+    ("AAPL","美","stock"),("MSFT","美","stock"),("NVDA","美","stock"),("GOOGL","美","stock"),
+    ("AMZN","美","stock"),("META","美","stock"),("AVGO","美","stock"),("LLY","美","stock"),
+    ("JPM","美","stock"),("V","美","stock"),("MA","美","stock"),("COST","美","stock"),
+    ("UNH","美","stock"),("HD","美","stock"),("ORCL","美","stock"),("WMT","美","stock"),
+    # 🇪🇺 歐股前10
+    ("ASML","歐","stock"),("NVO","歐","stock"),("MC.PA","歐","stock"),("NESN.SW","歐","stock"),
+    ("SAP","歐","stock"),("AZN","歐","stock"),("OR.PA","歐","stock"),("RMS.PA","歐","stock"),
+    ("SIE.DE","歐","stock"),("NOVN.SW","歐","stock"),("SHEL","歐","stock"),("ROG.SW","歐","stock"),
+    # 🇯🇵 日股前10
+    ("7203.T","日","stock"),("6758.T","日","stock"),("6861.T","日","stock"),("9984.T","日","stock"),
+    ("8306.T","日","stock"),("6098.T","日","stock"),("9433.T","日","stock"),("4063.T","日","stock"),
+    ("6501.T","日","stock"),("7974.T","日","stock"),
+    # 🇰🇷 韓 / 🇨🇳🇭🇰 中港 / 🇮🇳 印 ADR / 🇹🇼 台
+    ("005930.KS","韓","stock"),("000660.KS","韓","stock"),
+    ("TCEHY","中","stock"),("BABA","中","stock"),("0700.HK","港","stock"),
+    ("INFY","印","stock"),("TSM","台ADR","stock"),
+    # 🌐 市場/ETF(無ROE,只看價/趨勢)
+    ("SPY","美","etf"),("QQQ","美","etf"),("VTI","美","etf"),("DIA","美","etf"),
+    ("EFA","成熟","etf"),("VWO","新興","etf"),("VGK","歐","etf"),("EWJ","日","etf"),
+    ("0050.TW","台","etf"),("VT","全球","etf"),
 ]
 
 def num(x):
@@ -37,7 +52,7 @@ def sane(x, lo, hi):
 def fetch():
     import yfinance as yf
     rows = []
-    for code, region in TICKERS:
+    for code, region, typ in TICKERS:
         try:
             info = yf.Ticker(code).info
         except Exception as e:
@@ -46,7 +61,7 @@ def fetch():
         roe = info.get("returnOnEquity")  # 小數,如 0.45=45%
         roe_pct = round(roe*100, 1) if isinstance(roe, (int, float)) and abs(roe) <= 5 else None  # |ROE|>500% 視為壞值
         rows.append({
-            "code": code, "region": region,
+            "code": code, "region": region, "type": typ,
             "name": info.get("shortName") or code,
             "price": num(price),
             "chgPct": sane(info.get("regularMarketChangePercent"), -50, 50),

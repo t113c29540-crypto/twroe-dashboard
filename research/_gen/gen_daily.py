@@ -229,8 +229,23 @@ th{{color:{CC['mut']};font-weight:600}} td.l,th.l{{text-align:left}}
     else:
         s.append(f'<div class="card" style="color:{CC["down"]}">✓ 前50檔市場推算 ROE 與會計 ROE 大致一致（差異皆 ≤35%）。</div>')
     s.append(f'<p class="note">對帳方法：市場推算 ROE＝股價淨值比÷本益比；會計 ROE＝年度稅後淨利÷年末股東權益（皆取自 FinMind 不同資料集，獨立計算）。</p>')
+    # ⑦ 全球高ROE快照(讀 global.json,由 global-data 工作流每日更新)
+    s.append('<h2>⑦ 全球高 ROE 快照（美股／歐股／亞股）</h2>')
+    try:
+        gj = json.load(open(os.path.join(GEN, "global.json")))
+        gs = [g for g in gj.get("stocks", []) if g.get("type") != "etf" and g.get("roe") is not None]
+        gs.sort(key=lambda g: -(g["roe"] or 0))
+        if gs:
+            s.append(f'<div class="card"><p class="note">全球資料 {gj.get("date","")}（Yahoo Finance；現值非16年歷史；美股回購多者 ROE 偏高，與台股 ROE 不可直接比較）。</p><table><tr><th class="l">股票</th><th>地區</th><th>ROE</th><th>本益比</th><th>現價</th></tr>')
+            for g in gs[:12]:
+                s.append(f'<tr><td class="l">{esc(g["name"])[:22]} <span class="note">{g["code"]}</span></td><td>{g.get("region","")}</td><td>{g["roe"]}%</td><td>{g.get("pe") or "—"}</td><td>{g["price"]} <span class="note">{g.get("cur","")}</span></td></tr>')
+            s.append('</table></div>')
+        else:
+            s.append(f'<div class="card" style="color:{CC["mut"]}">全球個股資料暫無。</div>')
+    except Exception:
+        s.append(f'<div class="card" style="color:{CC["mut"]}">全球資料尚未產生（由 global-data 工作流每日自動更新）。</div>')
     # 方法
-    s.append(f"""<h2>⑦ 研究方法</h2><div class="card" style="font-size:13px;line-height:1.8">
+    s.append(f"""<h2>⑧ 研究方法</h2><div class="card" style="font-size:13px;line-height:1.8">
 <b>選股：</b>近16年（2010–2025）ROE 年年＞15% 的長青股，以「達標一致性」排序、均ROE 次之。<br>
 <b>ROE：</b>＝股價淨值比 ÷ 本益比（＝每股盈餘／每股淨值），資料取自 TWSE／TPEx 官方每年年底全市場本益比與股價淨值比；某年無本益比＝該年虧損／無盈餘，計為未達標（修正景氣循環股偏誤）。<br>
 <b>估值：</b>三法（本益比／股價淨值比）歷史百分位推算便宜價（20%）與合理價（50%）。<br>

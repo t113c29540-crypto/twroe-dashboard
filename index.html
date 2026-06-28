@@ -686,7 +686,7 @@ function renderGlobal(){const list=$("#list");
     <div class="disc" style="margin:0 0 8px">⚠️ 來源 Yahoo Finance(yfinance)，為<b>現值非16年歷史</b>；海外基本面偶有誤差(已過濾離譜值)，美股回購多者 ROE 偏高。非投資建議。</div>`;
   GLOBAL.forEach(d=>{const chg=d.chgPct,c=chg>0?'up':chg<0?'down':'flat';
     html+=`<div class="card"><div class="crow">
-      <div><div class="name">${d.name}<small>${d.code}</small> <span class="badge">${d.region}</span></div>
+      <div><div class="name">${d.name}<small>${d.code}</small> <span class="badge">${d.region}</span>${d.type==='etf'?' <span class="badge w">ETF/市場</span>':''}</div>
         <div class="meta" style="margin-top:6px"><span>ROE <b>${d.roe!=null?d.roe+'%':'—'}</b></span><span>本益比 <b>${d.pe??'—'}</b></span><span>淨值比 <b>${d.pb??'—'}</b></span>${d.sector?`<span>${d.sector}</span>`:''}</div></div>
       <div class="px"><div class="v ${c}">${d.price!=null?d.price.toLocaleString('en'):'—'} <small style="font-size:10px;color:var(--mut)">${d.cur}</small></div>
         <div class="chg ${c}">${chg!=null?(chg>=0?'▲ +':'▼ ')+Math.abs(chg).toFixed(2)+'%':'—'}</div>
