@@ -230,15 +230,16 @@ th{{color:{CC['mut']};font-weight:600}} td.l,th.l{{text-align:left}}
         s.append(f'<div class="card" style="color:{CC["down"]}">✓ 前50檔市場推算 ROE 與會計 ROE 大致一致（差異皆 ≤35%）。</div>')
     s.append(f'<p class="note">對帳方法：市場推算 ROE＝股價淨值比÷本益比；會計 ROE＝年度稅後淨利÷年末股東權益（皆取自 FinMind 不同資料集，獨立計算）。</p>')
     # ⑦ 全球高ROE快照(讀 global.json,由 global-data 工作流每日更新)
-    s.append('<h2>⑦ 全球高 ROE 快照（美股／歐股／亞股）</h2>')
+    s.append('<h2>⑦ 全球高 ROE 長青快照（美股／歐股／亞股）</h2>')
     try:
         gj = json.load(open(os.path.join(GEN, "global.json")))
         gs = [g for g in gj.get("stocks", []) if g.get("type") != "etf" and g.get("roe") is not None]
-        gs.sort(key=lambda g: -(g["roe"] or 0))
+        gs.sort(key=lambda g: (-(g.get("histGt15",0)/g["histY"] if g.get("histY") else -1), -(g["roe"] or 0)))
         if gs:
-            s.append(f'<div class="card"><p class="note">全球資料 {gj.get("date","")}（Yahoo Finance；現值非16年歷史；美股回購多者 ROE 偏高，與台股 ROE 不可直接比較）。</p><table><tr><th class="l">股票</th><th>地區</th><th>ROE</th><th>本益比</th><th>現價</th></tr>')
+            s.append(f'<div class="card"><p class="note">依「近年 ROE 達標一致性」排序。全球資料 {gj.get("date","")}（Yahoo Finance；近~4年財報、非16年；美股回購多者 ROE 偏高，與台股 ROE 不可直接比較）。</p><table><tr><th class="l">股票</th><th>地區</th><th>現ROE</th><th>近年達標</th><th>本益比</th><th>現價</th></tr>')
             for g in gs[:12]:
-                s.append(f'<tr><td class="l">{esc(g["name"])[:22]} <span class="note">{g["code"]}</span></td><td>{g.get("region","")}</td><td>{g["roe"]}%</td><td>{g.get("pe") or "—"}</td><td>{g["price"]} <span class="note">{g.get("cur","")}</span></td></tr>')
+                cons = f'{g.get("histGt15",0)}/{g.get("histY",0)}' if g.get("histY") else "—"
+                s.append(f'<tr><td class="l">{esc(g["name"])[:22]} <span class="note">{g["code"]}</span></td><td>{g.get("region","")}</td><td>{g["roe"]}%</td><td>{cons}</td><td>{g.get("pe") or "—"}</td><td>{g["price"]} <span class="note">{g.get("cur","")}</span></td></tr>')
             s.append('</table></div>')
         else:
             s.append(f'<div class="card" style="color:{CC["mut"]}">全球個股資料暫無。</div>')

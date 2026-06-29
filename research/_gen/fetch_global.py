@@ -49,17 +49,53 @@ def sane(x, lo, hi):
     if v is None or v < lo or v > hi: return None
     return v
 
+def _by_year(series):
+    d = {}
+    if series is None: return d
+    try: items = series.items()
+    except Exception: return d
+    for col, val in items:
+        try: d[col.year] = float(val)
+        except (ValueError, TypeError, AttributeError): pass
+    return d
+
+def roe_history(tk):
+    """近~4年逐年 ROE = 稅後淨利 / 年末股東權益(正權益才算)。yfinance 年度財報通常 4 年。"""
+    try:
+        inc = tk.income_stmt; bs = tk.balance_sheet
+    except Exception:
+        return {}
+    if inc is None or bs is None or getattr(inc, "empty", True) or getattr(bs, "empty", True):
+        return {}
+    def row(df, names):
+        for n in names:
+            if n in df.index: return df.loc[n]
+        return None
+    ni = row(inc, ["Net Income", "Net Income Common Stockholders", "Net Income From Continuing Operation Net Minority Interest"])
+    eq = row(bs, ["Stockholders Equity", "Total Stockholders Equity", "Common Stock Equity", "Stockholders Equity Gross Minority Interest"])
+    ni_y, eq_y = _by_year(ni), _by_year(eq)
+    roe = {}
+    for y in sorted(ni_y):
+        e = eq_y.get(y)
+        if e and e > 0:                      # 負/零權益(回購多的美股)不算,避免爆值
+            v = round(ni_y[y] / e * 100, 1)
+            if -200 < v < 500: roe[y] = v     # 過濾離譜
+    return roe
+
 def fetch():
     import yfinance as yf
     rows = []
     for code, region, typ in TICKERS:
         try:
-            info = yf.Ticker(code).info
+            tk = yf.Ticker(code); info = tk.info
         except Exception as e:
             print(f"  ! {code} 失敗 {repr(e)[:60]}"); continue
         price = info.get("currentPrice") or info.get("regularMarketPrice")
         roe = info.get("returnOnEquity")  # 小數,如 0.45=45%
         roe_pct = round(roe*100, 1) if isinstance(roe, (int, float)) and abs(roe) <= 5 else None  # |ROE|>500% 視為壞值
+        hist = roe_history(tk) if typ == "stock" else {}
+        hv = [hist[y] for y in sorted(hist)]
+        gt15 = sum(1 for v in hv if v > 15)
         rows.append({
             "code": code, "region": region, "type": typ,
             "name": info.get("shortName") or code,
@@ -71,9 +107,13 @@ def fetch():
             "mcap": info.get("marketCap"),
             "cur": info.get("currency") or "USD",
             "sector": info.get("sector") or "",
+            "roeHist": {str(y): hist[y] for y in sorted(hist)},   # 近~4年逐年ROE
+            "histY": len(hv), "histGt15": gt15,                   # 達標年數
+            "avgHist": round(sum(hv)/len(hv), 1) if hv else None, # 近年平均ROE
         })
         ok = "✓" if rows[-1]["price"] else "?"
-        print(f"  {ok} {code:<9}{rows[-1]['name'][:22]:<24}價{rows[-1]['price']} ROE{rows[-1]['roe']}% PE{rows[-1]['pe']}", flush=True)
+        cons = f"{gt15}/{len(hv)}" if hv else "—"
+        print(f"  {ok} {code:<9}{rows[-1]['name'][:20]:<22}價{rows[-1]['price']} 現ROE{rows[-1]['roe']}% 近{len(hv)}年達標{cons}", flush=True)
     return rows
 
 def main():
@@ -84,7 +124,12 @@ def main():
     if len(valid) < MIN_OK:
         print(f"✗ 全球資料不足：{len(valid)}/{len(TICKERS)} 有價(門檻{MIN_OK})。不覆寫 global.json(保留上一版)。")
         raise SystemExit(1)
-    rows.sort(key=lambda r: -(r["roe"] or -999))   # 依 ROE 由高到低(呼應高ROE主題)
+    # 長青優先：先個股後ETF；個股依「近年達標一致性 → 現ROE」排序
+    def sk(r):
+        n = r.get("histY", 0); g = r.get("histGt15", 0)
+        ratio = g/n if n else -1
+        return (r.get("type") == "etf", -ratio, -(r.get("roe") or -999))
+    rows.sort(key=sk)
     payload = {"date": datetime.date.today().isoformat(),
                "source": "Yahoo Finance (yfinance)；現值非歷史；非投資建議",
                "count": len(rows), "stocks": rows}
