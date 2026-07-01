@@ -323,6 +323,7 @@ function render(){
   if(filter==='strat'){ renderStrat(); return; }
   if(filter==='sim'){ renderSim(); return; }
   if(filter==='global'){ renderGlobal(); return; }
+  if(filter==='etf'){ renderETF(); return; }
   const list=$("#list");list.innerHTML="";
   const longList=LONGRANK().slice(0,topN);
   const sections=[
@@ -658,7 +659,7 @@ function renderSim(){const list=$("#list");
 function closeM(id){$("#"+id).classList.remove("show");}
 ['smask','nmask','pmask','amask'].forEach(id=>{const el=$("#"+id);if(el)el.addEventListener("click",e=>{if(e.target.id===id)closeM(id);});});
 
-const FILTERS=[["all","🇹🇼 台股"],["buy","🟢 估值偏低"],["long","長青排行"],["star","注目"],["watch","⭐ 自選"],["sim","💼 模擬"],["global","🌍 全球"],["perf","📈 回測"],["strat","🧭 估值口徑"]];
+const FILTERS=[["all","🇹🇼 台股"],["buy","🟢 估值偏低"],["long","長青排行"],["star","注目"],["watch","⭐ 自選"],["sim","💼 模擬"],["global","🌍 全球"],["etf","📊 ETF排名"],["perf","📈 回測"],["strat","🧭 估值口徑"]];
 function buildFilters(){const f=$("#filters");FILTERS.forEach(([k,t])=>{const c=document.createElement("div");c.className="chip"+(k==="all"?" sel":"");c.textContent=t;
   c.onclick=()=>{filter=k;[...f.children].forEach(x=>x.classList.remove("sel"));c.classList.add("sel");render();};f.appendChild(c);});}
 
@@ -691,6 +692,26 @@ function renderGlobal(){const list=$("#list");
       <div class="px"><div class="v ${c}">${d.price!=null?d.price.toLocaleString('en'):'—'} <small style="font-size:10px;color:var(--mut)">${d.cur}</small></div>
         <div class="chg ${c}">${chg!=null?(chg>=0?'▲ +':'▼ ')+Math.abs(chg).toFixed(2)+'%':'—'}</div>
         <div class="vol">市值 ${fmtM(d.mcap)}</div></div></div></div>`;});
+  list.innerHTML=html;
+}
+// ===== 台股+全球 ETF 前50排名(讀 etf.json, yfinance) =====
+let ETFS=[],ETF_DATE='';
+function loadETF(){
+  fetch('research/_gen/etf.json',{cache:'no-store'}).then(r=>r.json()).then(j=>{
+    ETFS=j.etfs||[];ETF_DATE=j.date||'';if(filter==='etf')renderETF();
+  }).catch(()=>{});
+}
+function renderETF(){const list=$("#list");
+  if(!ETFS.length){list.innerHTML='<div class="sec">📊 ETF 排名</div><div style="color:var(--mut);text-align:center;padding:24px">載入中…或暫無資料</div>';return;}
+  const fmtB=u=>u==null?'—':u>=1e9?(u/1e9).toFixed(1)+'B':(u/1e6).toFixed(0)+'M';
+  let html=`<div class="sec">📊 ETF 前${ETFS.length}名 ｜ 台股＋全球 ｜ 依規模(美元)排名 ｜ 資料 ${ETF_DATE}</div>
+    <div class="disc" style="margin:0 0 8px">⚠️ 來源 Yahoo Finance；規模已換算美元以同榜比較(台股ETF原為台幣)；YTD＝今年來報酬。非投資建議。</div>`;
+  ETFS.forEach(d=>{const chg=d.chgPct,c=chg>0?'up':chg<0?'down':'flat';const y=d.ytdPct,yc=y>0?'up':y<0?'down':'flat';
+    html+=`<div class="card"><div class="crow">
+      <div><div class="name">#${d.rank} ${d.name}<small>${d.code}</small> <span class="badge">${d.region}</span></div>
+        <div class="meta" style="margin-top:6px"><span>規模 <b>${fmtB(d.aumUsd)}</b></span><span>殖利率 <b>${d.yieldPct!=null?d.yieldPct+'%':'—'}</b></span><span>YTD <b class="${yc}">${y!=null?(y>=0?'+':'')+y+'%':'—'}</b></span></div></div>
+      <div class="px"><div class="v ${c}">${d.price!=null?d.price.toLocaleString('en'):'—'} <small style="font-size:10px;color:var(--mut)">${d.cur}</small></div>
+        <div class="chg ${c}">${chg!=null?(chg>=0?'▲ +':'▼ ')+Math.abs(chg).toFixed(2)+'%':'—'}</div></div></div></div>`;});
   list.innerHTML=html;
 }
 /*==ANALYSIS_MODULE_BEGIN==*/
@@ -906,7 +927,7 @@ function renderStrat(){
 }
 
 /*==ANALYSIS_MODULE_END==*/
-buildFilters();buildTopN();setStatus();render();loadValuations();loadGlobal();refresh();loop();
+buildFilters();buildTopN();setStatus();render();loadValuations();loadGlobal();loadETF();refresh();loop();
 loadMarquee();setInterval(loadMarquee,10*60*1000);
 if(localStorage.getItem('twroe_push'))pushState(true);
 if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}

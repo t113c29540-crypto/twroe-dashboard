@@ -22,14 +22,16 @@ jobs:
           python-version: "3.12"
       - name: 安裝 yfinance
         run: pip install --quiet yfinance
-      - name: 抓全球股市（現價＋ROE/PE/PB）
+      - name: 抓全球股市（現價＋ROE/近年一致性）
         run: python3 research/_gen/fetch_global.py
-      - name: 直接更新 global.json（資料檔，非研究內容，免審核）
+      - name: 抓台股+全球 ETF 排名（規模/殖利率/YTD）
+        run: python3 research/_gen/fetch_etf.py || echo "ETF 抓取失敗，保留上一版"
+      - name: 直接更新 global.json + etf.json（資料檔，非研究內容，免審核）
         run: |
           git config user.name "twroe-research-bot"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add research/_gen/global.json
+          git add research/_gen/global.json research/_gen/etf.json
           if git diff --cached --quiet; then echo "無變更"; exit 0; fi
-          git commit -m "全球股市資料更新 $(date -u +%Y-%m-%d) [skip ci]"
+          git commit -m "全球股市+ETF資料更新 $(date -u +%Y-%m-%d) [skip ci]"
           git pull --rebase origin main
           git push
