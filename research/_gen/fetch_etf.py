@@ -47,9 +47,20 @@ def fetch():
     except Exception: fx["TWD"] = None
     rows = []
     for code, region, cname in ETFS:
-        try: info = yf.Ticker(code).info
+        try:
+            tk = yf.Ticker(code); info = tk.info
         except Exception as e:
             print(f"  ! {code} 失敗 {repr(e)[:50]}"); continue
+        try:
+            h = tk.history(period="2y")["Close"].dropna()
+            rets = {}
+            if h is not None and len(h) > 1:
+                last = float(h.iloc[-1])
+                for k, n in (("d",1),("w",5),("m",20),("q",60),("y",240)):
+                    if len(h) > n and float(h.iloc[-1-n]):
+                        rets[k] = round((last/float(h.iloc[-1-n])-1)*100, 1)
+        except Exception:
+            rets = {}
         cur = info.get("currency") or "USD"
         price = num(info.get("navPrice")) or num(info.get("regularMarketPrice")) or num(info.get("currentPrice"))
         aum = num(info.get("totalAssets"))
@@ -67,6 +78,7 @@ def fetch():
             "yieldPct": round(yld*100, 2) if yld is not None else None,
             "ytdPct": round(ytd, 1) if ytd is not None else None,   # yfinance ytdReturn 已是百分比數
             "chgPct": num(info.get("regularMarketChangePercent")),
+            "ret": rets,                                            # 日/週/月/季/年 變動%(SWOT用)
         })
         print(f"  {'✓' if price else '?'} {code:<10}{cname[:12]:<14} 規模USD{round(aum_usd/1e9,1) if aum_usd else '—'}B 殖{rows[-1]['yieldPct']}% YTD{rows[-1]['ytdPct']}", flush=True)
     return rows

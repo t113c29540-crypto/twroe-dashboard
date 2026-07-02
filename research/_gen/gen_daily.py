@@ -50,11 +50,12 @@ def fetch_market(codes):
     回傳 {code:{price,per,pbr,yield}} 與 交易日。"""
     today = datetime.date.today()
     start = (today - datetime.timedelta(days=90)).isoformat()
+    start_px = (today - datetime.timedelta(days=550)).isoformat()   # 價抓~550天,算 日/週/月/季/年 變動
     end = today.isoformat()
     out, tdate = {}, ""
     for c in codes:
         per_rows = fm("TaiwanStockPER", c, start, end)
-        price_rows = fm("TaiwanStockPrice", c, start, end)
+        price_rows = fm("TaiwanStockPrice", c, start_px, end)
         rec = {}
         if per_rows:
             last = per_rows[-1]
@@ -64,7 +65,13 @@ def fetch_market(codes):
         if price_rows:
             pr = [r for r in price_rows if num(r.get("close"))]
             if pr:
-                rec["price"] = num(pr[-1].get("close"))
+                closes = [num(r.get("close")) for r in pr]
+                rec["price"] = closes[-1]
+                rets = {}
+                for k, n in (("d",1),("w",5),("m",20),("q",60),("y",240)):
+                    if len(closes) > n and closes[-1-n]:
+                        rets[k] = round((closes[-1]/closes[-1-n]-1)*100, 1)
+                rec["ret"] = rets
                 if pr[-1].get("date") and pr[-1]["date"] > tdate: tdate = pr[-1]["date"]
         out[c] = rec
         time.sleep(0.25)
@@ -166,6 +173,35 @@ def chart_roe_trend(stk):
         if i%2==0 or i==n-1: g+=f'<text x="{x:.1f}" y="{H-P["b"]+12:.1f}" text-anchor="middle" font-size="8" fill="{CC["mut"]}">{str(yr)[2:]}</text>'
     return svg_wrap(W,H,g)
 
+def chart_quadrant(items, ylab, ymid):
+    """SWOT 統計象限：X=期間股價變動%，Y=品質(ROE/殖利率)。items=[(name,x,y)]。
+    右上S(強+質優) 左上O(回落+質優,防價值陷阱) 右下T(漲+質弱) 左下W(弱)。"""
+    pts = [(n,x,y) for n,x,y in items if x is not None and y is not None]
+    if len(pts) < 3: return ""
+    W,H,P = 760,330,{"t":16,"r":14,"b":26,"l":34}
+    xm = max(5.0, max(abs(p[1]) for p in pts))*1.12
+    ylo = min(ymid, min(p[2] for p in pts)); yhi = max(ymid, max(p[2] for p in pts))
+    pad = (yhi-ylo)*0.12 or 1.0; ylo -= pad; yhi += pad
+    X = lambda v: P["l"]+(v+xm)/(2*xm)*(W-P["l"]-P["r"])
+    Y = lambda v: H-P["b"]-(v-ylo)/(yhi-ylo)*(H-P["t"]-P["b"])
+    x0,y0 = X(0),Y(ymid)
+    g  = f'<rect x="{x0:.0f}" y="{P["t"]}" width="{W-P["r"]-x0:.0f}" height="{y0-P["t"]:.0f}" fill="{CC["down"]}" opacity="0.09"/>'
+    g += f'<rect x="{P["l"]}" y="{P["t"]}" width="{x0-P["l"]:.0f}" height="{y0-P["t"]:.0f}" fill="{CC["gold"]}" opacity="0.09"/>'
+    g += f'<rect x="{x0:.0f}" y="{y0:.0f}" width="{W-P["r"]-x0:.0f}" height="{H-P["b"]-y0:.0f}" fill="{CC["up"]}" opacity="0.08"/>'
+    g += f'<rect x="{P["l"]}" y="{y0:.0f}" width="{x0-P["l"]:.0f}" height="{H-P["b"]-y0:.0f}" fill="#5a6b85" opacity="0.10"/>'
+    for lbl,cx,cy,col in (("S 優勢",(x0+W-P["r"])/2,P["t"]+14,"#48d39a"),("O 機會",(P["l"]+x0)/2,P["t"]+14,CC["goldlt"]),
+                          ("T 威脅",(x0+W-P["r"])/2,H-P["b"]-8,"#e8857a"),("W 弱勢",(P["l"]+x0)/2,H-P["b"]-8,"#8fa0b8")):
+        g += f'<text x="{cx:.0f}" y="{cy:.0f}" text-anchor="middle" font-size="13" font-weight="700" fill="{col}" opacity="0.9">{lbl}</text>'
+    g += f'<line x1="{x0:.1f}" y1="{P["t"]}" x2="{x0:.1f}" y2="{H-P["b"]}" stroke="{CC["mut"]}" stroke-width="0.8" stroke-dasharray="4 3"/>'
+    g += f'<line x1="{P["l"]}" y1="{y0:.1f}" x2="{W-P["r"]}" y2="{y0:.1f}" stroke="{CC["mut"]}" stroke-width="0.8" stroke-dasharray="4 3"/>'
+    g += f'<text x="{W-P["r"]}" y="{H-6}" text-anchor="end" font-size="9" fill="{CC["mut"]}">股價變動% →</text>'
+    g += f'<text x="{P["l"]}" y="{P["t"]-4}" font-size="9" fill="{CC["mut"]}">↑ {ylab}（虛線={ymid}）</text>'
+    for n,x,y in pts:
+        px,py = X(max(-xm,min(xm,x))),Y(y)
+        col = CC["down"] if (x>=0 and y>=ymid) else CC["gold"] if (x<0 and y>=ymid) else CC["up"] if x>=0 else "#8fa0b8"
+        g += f'<circle cx="{px:.1f}" cy="{py:.1f}" r="3.2" fill="{col}"/><text x="{px+4:.1f}" y="{py+3:.1f}" font-size="7.5" fill="{CC["mut"]}">{esc(n)}</text>'
+    return svg_wrap(W,H,g)
+
 # ---------- 文章 ----------
 def esc(s): return str(s).replace("&","&amp;").replace("<","&lt;")
 
@@ -245,8 +281,30 @@ th{{color:{CC['mut']};font-weight:600}} td.l,th.l{{text-align:left}}
             s.append(f'<div class="card" style="color:{CC["mut"]}">全球個股資料暫無。</div>')
     except Exception:
         s.append(f'<div class="card" style="color:{CC["mut"]}">全球資料尚未產生（由 global-data 工作流每日自動更新）。</div>')
+    # ⑧ SWOT 象限(股價變動×品質)
+    wkey = {"daily":"d","weekly":"w","monthly":"m","quarterly":"q","yearly":"y"}.get(period,"d")
+    wlbl = {"d":"1日","w":"1週(5交易日)","m":"1月(20交易日)","q":"1季(60交易日)","y":"1年(240交易日)"}[wkey]
+    s.append(f'<h2>⑧ 股價變動 SWOT 象限圖（{wlbl}）</h2>')
+    tw_items = [(r["name"], (r.get("ret") or {}).get(wkey), r.get("avgRoe")) for r in rows]
+    svg_tw = chart_quadrant(tw_items, "平均ROE%", 15)
+    if svg_tw:
+        s.append(f'<div class="card"><p class="note">🇹🇼 台股前50長青股 ｜ X軸＝{wlbl}股價變動、Y軸＝近16年平均ROE。</p>{svg_tw}</div>')
+    try:
+        gj2 = json.load(open(os.path.join(GEN, "global.json")))
+        g_items = [(g["code"], (g.get("ret") or {}).get(wkey), g.get("avgHist") if g.get("avgHist") is not None else g.get("roe"))
+                   for g in gj2.get("stocks", []) if g.get("type") != "etf"]
+        svg_g = chart_quadrant(g_items, "ROE%", 15)
+        if svg_g: s.append(f'<div class="card"><p class="note">🌍 全球個股 ｜ Y軸＝近年平均ROE（美股回購股偏高，與台股不可直接比較）。</p>{svg_g}</div>')
+    except Exception: pass
+    try:
+        ej = json.load(open(os.path.join(GEN, "etf.json")))
+        e_items = [(e["code"], (e.get("ret") or {}).get(wkey), e.get("yieldPct")) for e in ej.get("etfs", [])]
+        svg_e = chart_quadrant(e_items, "殖利率%", 3)
+        if svg_e: s.append(f'<div class="card"><p class="note">📊 台股＋全球 ETF ｜ Y軸＝殖利率（收益導向象限）。</p>{svg_e}</div>')
+    except Exception: pass
+    s.append(f'<p class="note">SWOT 為<b>統計象限</b>：S＝品質高且上漲、O＝品質高但回落（<b>可能是機會、也可能是價值陷阱</b>）、T＝品質弱卻大漲（追高風險）、W＝品質弱且下跌。看板「🎯 SWOT」分頁可互動切換 日/週/月/季/年 與 台股/全球/ETF/自選。<b>非投資建議。</b></p>')
     # 方法
-    s.append(f"""<h2>⑧ 研究方法</h2><div class="card" style="font-size:13px;line-height:1.8">
+    s.append(f"""<h2>⑨ 研究方法</h2><div class="card" style="font-size:13px;line-height:1.8">
 <b>選股：</b>近16年（2010–2025）ROE 年年＞15% 的長青股，以「達標一致性」排序、均ROE 次之。<br>
 <b>ROE：</b>＝股價淨值比 ÷ 本益比（＝每股盈餘／每股淨值），資料取自 TWSE／TPEx 官方每年年底全市場本益比與股價淨值比；某年無本益比＝該年虧損／無盈餘，計為未達標（修正景氣循環股偏誤）。<br>
 <b>估值：</b>三法（本益比／股價淨值比）歷史百分位推算便宜價（20%）與合理價（50%）。<br>
@@ -280,7 +338,7 @@ def main():
         sig="na"
         if price and cheap and fair:
             sig = "buy" if price<=cheap else ("fair" if price<=fair else "exp")
-        rows.append({**s,"price":price,"per":per,"pbr":pbr,"cheap":cheap,"fair":fair,"roeNow":roe,"sig":sig})
+        rows.append({**s,"price":price,"per":per,"pbr":pbr,"cheap":cheap,"fair":fair,"roeNow":roe,"sig":sig,"ret":m.get("ret") or {}})
     # 資料品質關卡：抓不到足夠資料就不發佈（寧缺勿錯）
     MIN_OK = 40
     hits = sum(1 for r in rows if r["price"])
@@ -290,7 +348,8 @@ def main():
         raise SystemExit(1)
     # === 優化：valuations.json 供看板直接讀(免即時代理) ===
     val={r["code"]:{"cheap":r["cheap"],"fair":r["fair"],"roe":r["roeNow"],"per":r["per"],"pbr":r["pbr"],
-                    "price":r["price"],"sig":r["sig"],"cons":r.get("cons"),"aroe":r.get("avgRoe")}
+                    "price":r["price"],"sig":r["sig"],"cons":r.get("cons"),"aroe":r.get("avgRoe"),
+                    "ret":r.get("ret") or {}}
          for r in rows if r["cheap"] is not None}
     json.dump({"date":date,"v":val}, open(os.path.join(GEN,"valuations.json"),"w",encoding="utf-8"), ensure_ascii=False)
     # === 對帳：市場推算ROE(PBR/PER) vs 會計ROE(財報),差異>35% 示警 ===

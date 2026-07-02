@@ -59,6 +59,20 @@ def _by_year(series):
         except (ValueError, TypeError, AttributeError): pass
     return d
 
+def period_rets(tk):
+    """近~2年日收盤 → {d,w,m,q,y} 期間報酬%（1/5/20/60/240 交易日）"""
+    try:
+        h = tk.history(period="2y")["Close"].dropna()
+    except Exception:
+        return {}
+    if h is None or len(h) < 2: return {}
+    last = float(h.iloc[-1]); out = {}
+    for k, n in (("d",1),("w",5),("m",20),("q",60),("y",240)):
+        if len(h) > n:
+            base = float(h.iloc[-1-n])
+            if base: out[k] = round((last/base-1)*100, 1)
+    return out
+
 def roe_history(tk):
     """近~4年逐年 ROE = 稅後淨利 / 年末股東權益(正權益才算)。yfinance 年度財報通常 4 年。"""
     try:
@@ -110,6 +124,7 @@ def fetch():
             "roeHist": {str(y): hist[y] for y in sorted(hist)},   # 近~4年逐年ROE
             "histY": len(hv), "histGt15": gt15,                   # 達標年數
             "avgHist": round(sum(hv)/len(hv), 1) if hv else None, # 近年平均ROE
+            "ret": period_rets(tk),                               # 日/週/月/季/年 股價變動%(SWOT用)
         })
         ok = "✓" if rows[-1]["price"] else "?"
         cons = f"{gt15}/{len(hv)}" if hv else "—"
