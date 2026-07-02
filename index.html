@@ -134,6 +134,7 @@
 <header>
   <div class="htop">
     <div class="brand"><span class="logo"><i style="height:7px"></i><i style="height:11px"></i><i style="height:15px"></i></span><b>全球高ROE</b> 行動看板</div>
+    <button class="btn g" style="flex:none;padding:7px 10px" onclick="fontScale()" title="放大文字(100→115→130%循環)">A±</button>
     <button class="btn g" style="flex:none;padding:7px 12px" onclick="refresh(true)">↻ 更新</button>
   </div>
   <div class="status"><span><span class="dot" id="mdot"></span> <span id="mstat">載入中…</span></span><span id="upd">—</span></div>
@@ -143,7 +144,7 @@
     <div class="btn on" id="autoBtn" onclick="toggleAuto()">⏱ 自動:開</div>
     <div class="btn" onclick="openProfile()">👤 個人檔</div>
   </div>
-  <div class="toplinks"><a href="research/">📑 每日/週/月/季/年研究</a><a href="manual.html">📖 操作手冊</a></div>
+  <div class="toplinks"><a href="research/">📑 研究報導</a><a href="manual.html">📖 操作手冊</a><a href="report.html">📄 完整報告</a></div>
   <div class="addbar">
     <input id="addInput" inputmode="numeric" placeholder="輸入股票代號加入自選(如 2317)" onkeydown="if(event.key==='Enter')addStock()">
     <button onclick="addStock()">＋加入</button>
@@ -199,10 +200,12 @@
   <h3>👤 個人檔（本機）</h3>
   <div style="font-size:12px;color:var(--mut);line-height:1.6">所有資料只存在<b style="color:var(--gold)">這台裝置的瀏覽器</b>、不上傳雲端。可匯出檔案備份，到另一台裝置匯入即同步。</div>
   <div class="ticket" id="fSum"></div>
-  <div class="warn">清除瀏覽器資料會遺失個人檔，建議定期匯出備份。</div>
+  <div class="warn">清除瀏覽器資料會遺失個人檔，建議定期匯出備份。<b>跨裝置同步請用 JSON</b>（機器可精確讀回）；Excel／PDF 供閱讀與存檔（PDF 為列印格式、無法匯入）。</div>
   <div class="mbtns" style="flex-wrap:wrap">
-    <button class="go" onclick="exportProfile()">📤 匯出備份</button>
-    <label style="flex:1;text-align:center;padding:11px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:#22344f;color:var(--tx)">📥 匯入<input type="file" accept=".json" style="display:none" onchange="importProfile(this)"></label>
+    <button class="go" onclick="exportProfile()">📤 JSON（可匯入）</button>
+    <button class="go" style="background:#2e7d4f;color:#fff" onclick="exportProfileXls()">📊 Excel</button>
+    <button class="go" style="background:#8a3a3a;color:#fff" onclick="exportProfilePdf()">📄 PDF</button>
+    <label style="flex:1;text-align:center;padding:11px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:#22344f;color:var(--tx)">📥 匯入JSON<input type="file" accept=".json" style="display:none" onchange="importProfile(this)"></label>
     <button class="cancel" onclick="closeM('fmask')">關閉</button>
   </div>
 </div></div>
@@ -775,6 +778,37 @@ function importProfile(inp){
   }catch(e){alert('匯入失敗：'+e);}};
   r.readAsText(f);inp.value='';
 }
+function exportProfileXls(){  // Excel(.xls, SpreadsheetML/HTML表格,Excel可開;供閱讀存檔,匯入請用JSON
+  const rows=[['類別','代號','名稱','成本/現價','股數','日期','報酬%']];
+  WATCH.forEach(d=>rows.push(['自選',d.code,d.name||'',d.price||'','','','']));
+  SIM.forEach(h=>{const cur=(byCode(h.code)||{}).price||h.buy;
+    rows.push(['模擬持有',h.code,h.name,h.buy,h.shares,h.date,((cur-h.buy)/h.buy*100).toFixed(1)]);});
+  const tbl='<table border="1">'+rows.map(r=>'<tr>'+r.map(c=>`<td>${String(c).replace(/</g,'&lt;')}</td>`).join('')+'</tr>').join('')+'</table>';
+  const html=`﻿<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body><h3>高ROE個人檔（本機匯出，非投資建議）</h3>${tbl}</body></html>`;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([html],{type:'application/vnd.ms-excel'}));
+  a.download='高ROE個人檔_'+new Date().toISOString().slice(0,10)+'.xls';a.click();
+}
+function exportProfilePdf(){  // 開列印視窗→使用者「另存為PDF」
+  const rows=[];
+  WATCH.forEach(d=>rows.push(`<tr><td>自選</td><td>${d.code}</td><td>${d.name||''}</td><td>${d.price||'—'}</td><td>—</td><td>—</td></tr>`));
+  SIM.forEach(h=>{const cur=(byCode(h.code)||{}).price||h.buy;
+    rows.push(`<tr><td>模擬持有</td><td>${h.code}</td><td>${h.name}</td><td>${h.buy}→${cur}</td><td>${h.shares}股</td><td>${((cur-h.buy)/h.buy*100).toFixed(1)}%</td></tr>`);});
+  const w=window.open('','_blank');if(!w){alert('請允許彈出視窗');return;}
+  w.document.write(`<html><head><meta charset="UTF-8"><title>高ROE個人檔</title>
+   <style>body{font-family:"PingFang TC",sans-serif;padding:24px;color:#222}h2{font-size:20px}
+   table{border-collapse:collapse;width:100%;font-size:13px}td,th{border:1px solid #999;padding:6px 9px;text-align:left}
+   .n{color:#666;font-size:11px;margin-top:14px}<\/style></head><body>
+   <h2>📊 全球高ROE看板 · 個人檔（${new Date().toISOString().slice(0,10)}）</h2>
+   <table><tr><th>類別</th><th>代號</th><th>名稱</th><th>成本/現價</th><th>股數</th><th>報酬</th></tr>${rows.join('')||'<tr><td colspan="6">（空）</td></tr>'}</table>
+   <p class="n">本檔為本機個人資料匯出（不含雲端）。模擬持有為研究紀錄，非實際交易，非投資建議。列印時選「另存為 PDF」即可存檔。</p>
+   </body></html>`);
+  w.document.close();w.focus();setTimeout(()=>w.print(),400);
+}
+function fontScale(){let z=+(localStorage.getItem('twroe_zoom')||100);z=z>=130?100:z+15;
+  localStorage.setItem('twroe_zoom',z);applyZoom();}
+function applyZoom(){document.body.style.zoom=(+(localStorage.getItem('twroe_zoom')||100))+'%';}
+applyZoom();
 // ===== 語音FAQ助理(Web Speech API 中/英,零後端;僅答系統使用問題,非投資建議) =====
 let vaLang='zh';
 const VA_FAQ=[
@@ -820,9 +854,15 @@ const VA_FAQ=[
  {k:['全球','美股','global','etf','排名'],
   zh:'「🌍 全球」列各國高ROE個股（含近年達標一致性）；「📊 ETF排名」是台股＋全球ETF依規模（換算美元）前50名。',
   en:'🌍 Global lists high-ROE stocks worldwide with recent consistency; 📊 ETF ranks Taiwan + global ETFs by USD assets, top 50.'},
- {k:['研究','文章','報告','日報','週報','research','report'],
-  zh:'每日/每週/每月研究圖文在看板底部「📑 每日研究」連結；季報與年報經審核後發佈。',
-  en:'Daily/weekly/monthly research articles are linked at the bottom of the dashboard; quarterly/yearly reports are reviewed before release.'},
+ {k:['研究','文章','報告','日報','週報','research','articles'],
+  zh:'每日/每週/每月研究報導在頂部「📑 研究報導」；季報與年報經審核後發佈；系統方法與圖表優缺點見「📄 完整報告」。',
+  en:'Daily/weekly/monthly research is under 📑 at the top; quarterly/yearly reports are reviewed first. See 📄 Full Report for methodology.'},
+ {k:['swot','象限','縮放','放大','zoom','quadrant'],
+  zh:'SWOT 象限：X軸=期間股價變動、Y軸=品質(ROE或殖利率)。可切台股50/全球/ETF/自選與日/週/月/季/年，「縮放1×/2×/4×」聚焦中心；點多時圖上只標極端值，完整名單在圖下方。',
+  en:'SWOT quadrant: X = period price change, Y = quality (ROE or yield). Switch groups/periods, zoom 1-4x; full name lists appear below the chart.'},
+ {k:['excel','xls','pdf','列印','print'],
+  zh:'「👤 個人檔」可匯出三種格式：JSON（可匯入、跨裝置同步）、Excel（.xls 閱讀存檔）、PDF（列印視窗選「另存為PDF」）。匯入僅支援 JSON——PDF 是列印格式、Excel 解析不可靠，這是誠實的技術限制。',
+  en:'Profile exports: JSON (re-importable), Excel (.xls, readable), PDF (via print dialog). Import supports JSON only — PDF/Excel round-trips are unreliable by nature.'},
 ];
 function openVA(){$("#vmask").classList.add("show");setTimeout(()=>{try{$("#vaIn").focus()}catch(e){}},150);}
 function vaSetLang(l){vaLang=l;$("#vaZh").classList.toggle('sel',l==='zh');$("#vaEn").classList.toggle('sel',l==='en');
@@ -850,11 +890,12 @@ function vaMic(){const SR=window.SpeechRecognition||window.webkitSpeechRecogniti
     r.start();
   }catch(e){vaPush('bot','啟動失敗:'+e);}}
 // ===== 🎯 SWOT 象限圖(股價變動×品質;統計象限非投資建議) =====
-let VALMAP={},swotGrp='tw',swotPer='d',WRETS={};
+let VALMAP={},swotGrp='tw',swotPer='d',swotZoom=1,WRETS={};
+const SWOT_ZOOMS=[[1,'1×'],[2,'2×'],[4,'4×']];
 const SWOT_GRPS=[['tw','🇹🇼 台股50'],['global','🌍 全球'],['etf','📊 ETF'],['watch','⭐ 自選']];
 const SWOT_PERS=[['d','日'],['w','週'],['m','月'],['q','季'],['y','年']];
 const SWOT_WLBL={d:'1日',w:'1週',m:'1月(20交易日)',q:'1季(60交易日)',y:'1年(240交易日)'};
-function swotSet(k,v){if(k==='grp'){swotGrp=v;if(v==='watch')loadWatchRets();}else{swotPer=v;}renderSwot();}
+function swotSet(k,v){if(k==='grp'){swotGrp=v;if(v==='watch')loadWatchRets();}else if(k==='zoom'){swotZoom=v;}else{swotPer=v;}renderSwot();}
 async function loadWatchRets(){
   for(const d of WATCH){
     if(WRETS[d.code])continue;
@@ -882,7 +923,8 @@ function swotSVG(items,ymid,ylab){
   const pts=items.filter(i=>i.x!=null&&i.y!=null);
   if(pts.length<2)return '<div class="nodat" style="padding:22px">此組合暫無足夠資料（資料檔更新後才有週/月/季/年變動；自選股需先載入）。</div>';
   const W=360,H=310,P={t:14,r:10,b:24,l:26};
-  const xm=Math.max(5,...pts.map(p=>Math.abs(p.x)))*1.12;
+  let xm=Math.max(5,...pts.map(p=>Math.abs(p.x)))*1.12;
+  if(swotZoom>1)xm=Math.max(2,xm/swotZoom);   // 縮放:聚焦中心,超界點貼邊顯示
   let ylo=Math.min(ymid,...pts.map(p=>p.y)),yhi=Math.max(ymid,...pts.map(p=>p.y));
   const pad=(yhi-ylo)*0.12||1;ylo-=pad;yhi+=pad;
   const X=v=>P.l+(v+xm)/(2*xm)*(W-P.l-P.r), Y=v=>H-P.b-(v-ylo)/(yhi-ylo)*(H-P.t-P.b);
@@ -898,19 +940,34 @@ function swotSVG(items,ymid,ylab){
    +`<line x1="${P.l}" y1="${y0}" x2="${W-P.r}" y2="${y0}" stroke="var(--mut)" stroke-width="0.8" stroke-dasharray="4 3"/>`
    +`<text x="${W-P.r}" y="${H-4}" text-anchor="end" font-size="9" fill="var(--mut)">股價變動% →</text>`
    +`<text x="${P.l}" y="${P.t-3}" font-size="9" fill="var(--mut)">↑ ${ylab}（虛線=${ymid}）</text>`;
+  // 圖文分開防疊字:點多時只標極端值(完整名單列在圖下方)
+  const ext=new Set([...pts].sort((a,b)=>Math.abs(b.x)-Math.abs(a.x)).slice(0,6).map(p=>p.n));
+  [...pts].sort((a,b)=>b.y-a.y).slice(0,4).forEach(p=>ext.add(p.n));
+  const showAll=pts.length<=20||swotZoom>=2;
   pts.forEach(p=>{const px=X(Math.max(-xm,Math.min(xm,p.x))),py=Y(p.y);
     const col=(p.x>=0&&p.y>=ymid)?'#22A06B':(p.x<0&&p.y>=ymid)?'#C9A227':(p.x>=0)?'#E0403A':'#8fa0b8';
-    g+=`<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="3" fill="${col}"/><text x="${(px+4).toFixed(1)}" y="${(py+3).toFixed(1)}" font-size="7.5" fill="var(--mut)">${p.n}</text>`;});
+    g+=`<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="3" fill="${col}"/>`;
+    if(showAll||ext.has(p.n))g+=`<text x="${(px+4).toFixed(1)}" y="${(py+3).toFixed(1)}" font-size="8" fill="var(--mut)">${p.n}</text>`;});
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${g}</svg>`;
 }
 function renderSwot(){
   const list=$("#list");
   const ymid=swotGrp==='etf'?3:15, ylab=swotGrp==='etf'?'殖利率%':'ROE%';
+  const its=swotItems().filter(i=>i.x!=null&&i.y!=null);
+  const q={S:[],O:[],T:[],W:[]};
+  its.forEach(i=>{q[(i.x>=0&&i.y>=ymid)?'S':(i.x<0&&i.y>=ymid)?'O':(i.x>=0)?'T':'W'].push(i.n);});
   let html=`<div class="sec">🎯 SWOT 象限 ｜ 股價變動（${SWOT_WLBL[swotPer]}）× ${swotGrp==='etf'?'殖利率':'品質(ROE)'}</div>
    <div class="swrow">${SWOT_GRPS.map(([k,t])=>`<div class="chip${k===swotGrp?' sel':''}" onclick="swotSet('grp','${k}')">${t}</div>`).join('')}</div>
-   <div class="swrow">${SWOT_PERS.map(([k,t])=>`<div class="chip${k===swotPer?' sel':''}" onclick="swotSet('per','${k}')">${t}</div>`).join('')}</div>
-   <div class="card">${swotSVG(swotItems(),ymid,ylab)}</div>
-   <div class="disc" style="margin-top:6px">SWOT為<b>統計象限</b>（該期間股價變動 × ${swotGrp==='etf'?'殖利率':'長期ROE品質'}）：S=品質高且上漲、O=品質高但回落（<b>注意可能是價值陷阱</b>）、T=品質弱卻大漲（追高風險）、W=品質弱且下跌。非投資建議。</div>`;
+   <div class="swrow">${SWOT_PERS.map(([k,t])=>`<div class="chip${k===swotPer?' sel':''}" onclick="swotSet('per','${k}')">${t}</div>`).join('')}
+     <span style="color:var(--mut);font-size:12px;align-self:center;margin-left:4px">縮放</span>${SWOT_ZOOMS.map(([k,t])=>`<div class="chip${k===swotZoom?' sel':''}" onclick="swotSet('zoom',${k})">${t}</div>`).join('')}</div>
+   <div class="card">${swotSVG(its,ymid,ylab)}</div>
+   <div class="card" style="font-size:12.5px;line-height:1.9">
+     <div><b style="color:#48d39a">S 優勢（${q.S.length}）：</b>${q.S.join('、')||'—'}</div>
+     <div><b style="color:var(--goldlt)">O 機會（${q.O.length}）：</b>${q.O.join('、')||'—'}</div>
+     <div><b style="color:#e8857a">T 威脅（${q.T.length}）：</b>${q.T.join('、')||'—'}</div>
+     <div><b style="color:#8fa0b8">W 弱勢（${q.W.length}）：</b>${q.W.join('、')||'—'}</div>
+   </div>
+   <div class="disc" style="margin-top:6px">SWOT為<b>統計象限</b>（該期間股價變動 × ${swotGrp==='etf'?'殖利率':'長期ROE品質'}）：S=品質高且上漲、O=品質高但回落（<b>注意可能是價值陷阱</b>）、T=品質弱卻大漲（追高風險）、W=品質弱且下跌。點多時圖上僅標極端值、完整名單見上表（避免文字重疊）；「縮放」聚焦中心、超出範圍的點貼邊顯示。非投資建議。</div>`;
   list.innerHTML=html;
 }
 /*==ANALYSIS_MODULE_BEGIN==*/

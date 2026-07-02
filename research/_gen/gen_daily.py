@@ -314,14 +314,20 @@ th{{color:{CC['mut']};font-weight:600}} td.l,th.l{{text-align:left}}
 
 def rebuild_index():
     files=sorted([os.path.basename(f) for f in glob.glob(os.path.join(RES,"2*.html"))], reverse=True)
-    items="".join(f'<li><a href="{f}">{f[:-5]}</a> · 每日研究</li>' for f in files)
+    def item(f):
+        stem = f[:-5]
+        for k, v in (("weekly","每週研究"),("monthly","每月研究"),("quarterly","每季研究"),("yearly","每年研究")):
+            if stem.endswith("-"+k):
+                return f'<li><a href="{f}">{stem[:-len(k)-1]}</a> · <b>{v}</b></li>'
+        return f'<li><a href="{f}">{stem}</a> · 每日研究</li>'
+    items="".join(item(f) for f in files)
     html=f"""<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>全球股市高ROE長青股 · 研究索引</title><style>body{{margin:0;background:{CC['bg']};color:{CC['tx']};font-family:-apple-system,"PingFang TC",sans-serif;line-height:1.8}}
+<title>研究報導 · 全球股市高ROE長青股</title><style>body{{margin:0;background:{CC['bg']};color:{CC['tx']};font-family:-apple-system,"PingFang TC",sans-serif;line-height:1.8}}
 .wrap{{max-width:760px;margin:0 auto;padding:24px 16px 60px}} h1{{color:{CC['gold']};font-size:22px}} a{{color:{CC['goldlt']};text-decoration:none}}
 ul{{list-style:none;padding:0}} li{{background:{CC['card']};border:1px solid {CC['line']};border-radius:10px;padding:11px 14px;margin:7px 0}}
 .note{{color:{CC['mut']};font-size:12px}}</style></head><body><div class="wrap">
-<p class="note"><a href="../index.html">← 回行動看板</a></p><h1>📑 全球股市高ROE長青股 · 每日研究</h1>
-<p class="note">每日由 GitHub Actions 自動產生（TWSE／TPEx 官方資料，ROE＝股價淨值比÷本益比）。非投資建議。</p>
+<p class="note"><a href="../index.html">← 回行動看板</a> ｜ <a href="../report.html">📄 完整系統報告</a></p><h1>📑 研究報導 · 全球股市高ROE長青股</h1>
+<p class="note">每日／每週／每月／每季／每年由 GitHub Actions 自動產生（台股：TWSE／TPEx／FinMind；全球與 ETF：Yahoo Finance；ROE＝股價淨值比÷本益比）。非投資建議。</p>
 <ul>{items or '<li class="note">尚無文章</li>'}</ul></div></body></html>"""
     open(os.path.join(RES,"index.html"),"w",encoding="utf-8").write(html)
 
