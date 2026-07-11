@@ -1,0 +1,37 @@
+name: 盤中快刷（全球/ETF/期貨債券現價＋加密）
+
+on:
+  schedule:
+    # 美股盤中每2小時＋收盤後一次（UTC；平日）。台股盤中由前端 TWSE MIS 即時報價、加密由前端直連 CoinGecko。
+    - cron: "0 13,15,17,19,21,22 * * 1-5"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: quick-refresh
+  cancel-in-progress: true
+
+jobs:
+  quick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 安裝 yfinance
+        run: pip install --quiet yfinance
+      - name: 批次快刷現價（命中率<50% 自動放棄不覆寫）
+        run: python3 research/_gen/fetch_quick.py
+      - name: 提交資料檔
+        run: |
+          git config user.name "twroe-research-bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add research/_gen/global.json research/_gen/etf.json research/_gen/macro.json research/_gen/crypto.json
+          if git diff --cached --quiet; then echo "無變更"; exit 0; fi
+          git commit -m "盤中快刷 $(date -u +%H:%M)UTC [skip ci]"
+          git pull --rebase origin main
+          git push

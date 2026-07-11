@@ -113,6 +113,8 @@
   .tile b{font-size:13px;}.tile span{font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;}
   .tile small{font-size:10px;opacity:.85;}
   .ycard{display:flex;justify-content:space-between;align-items:center;background:#0e1726;border:1px solid var(--line);border-radius:10px;padding:9px 13px;margin:5px 0;font-size:13.5px;}
+  .livedot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#48d39a;margin-right:4px;vertical-align:1px;animation:lp 1.6s ease-in-out infinite;}
+  @keyframes lp{0%,100%{opacity:1}50%{opacity:.25}}
 /*==ANALYSIS_CSS_BEGIN==*/
   .ana{display:block;width:100%;margin-top:9px;padding:10px;border-radius:10px;border:1px solid var(--gold);
     background:linear-gradient(90deg,rgba(201,162,39,.16),rgba(201,162,39,.05));color:var(--goldlt);
@@ -371,6 +373,7 @@ function render(){
   if(filter==='swot'){ renderSwot(); return; }
   if(filter==='crypto'){ renderCrypto(); return; }
   if(filter==='macro'){ renderMacro(); return; }
+  if(filter==='heat'){ renderHeat(); return; }
   const list=$("#list");list.innerHTML="";
   const longList=LONGRANK().slice(0,topN);
   const sections=[
@@ -706,13 +709,13 @@ function renderSim(){const list=$("#list");
 function closeM(id){$("#"+id).classList.remove("show");}
 ['smask','nmask','pmask','fmask','vmask','amask'].forEach(id=>{const el=$("#"+id);if(el)el.addEventListener("click",e=>{if(e.target.id===id)closeM(id);});});
 
-const FILTERS=[["all","🇹🇼 台股"],["buy","🟢 估值偏低"],["long","長青排行"],["star","注目"],["watch","⭐ 自選"],["sim","💼 模擬"],["global","🌍 全球"],["etf","📊 ETF排名"],["crypto","₿ 加密50"],["macro","🛢 期貨/債券"],["swot","🎯 SWOT"],["perf","📈 回測"],["strat","🧭 估值口徑"]];
+const FILTERS=[["all","🇹🇼 台股"],["buy","🟢 估值偏低"],["long","長青排行"],["star","注目"],["watch","⭐ 自選"],["sim","💼 模擬"],["global","🌍 全球"],["etf","📊 ETF排名"],["crypto","₿ 加密50"],["macro","🛢 期貨/債券"],["heat","🔥 總覽"],["swot","🎯 SWOT"],["perf","📈 回測"],["strat","🧭 估值口徑"]];
 function buildFilters(){const f=$("#filters");FILTERS.forEach(([k,t])=>{const c=document.createElement("div");c.className="chip"+(k==="all"?" sel":"");c.textContent=t;
   c.onclick=()=>{filter=k;[...f.children].forEach(x=>x.classList.remove("sel"));c.classList.add("sel");render();};f.appendChild(c);});}
 
 function loadValuations(){  // 優化:同源讀 valuations.json 填前50估值,免即時代理(代理掛了也有估值)
   fetch('research/_gen/valuations.json',{cache:'no-store'}).then(r=>r.json()).then(j=>{
-    if(j.date){const b=$("#vbase");if(b)b.textContent='估值基準 '+j.date;}
+    if(j.date){VAL_DATE=j.date;const b=$("#vbase");if(b)b.textContent='估值基準 '+j.date;}
     const v=j.v||{};VALMAP=v;
     all().forEach(d=>{const x=v[d.code];if(!x)return;
       if(x.cheap!=null)d.cheap=x.cheap;if(x.fair!=null)d.fair=x.fair;
@@ -965,6 +968,33 @@ function renderMacro(){const list=$("#list");
    <div class="card">${hmTiles(MACRO.bondEtf||[],macPer,BE_LIM)}</div>
    <div class="disc" style="margin-top:8px">出處：Yahoo Finance；殖利率為 CBOE 指數（^IRX/^FVX/^TNX/^TYX）。誠實範圍：期貨無公認「前50」清單——列 18 檔全球主要<b>近月合約</b>（有轉倉效應）；個別債券為 OTC 報價免費拿不到，以<b>殖利率＋債券ETF 為代理</b>。債券價格與殖利率反向。<b>非投資建議。</b></div>`;
   list.innerHTML=html;}
+// ===== 🔥 全市場總覽(六類資產一頁熱力,Finviz Market Map 概念) =====
+let heatPer='d',VAL_DATE='';
+const TW_LIM={d:5,w:8,m:15,q:25,y:50};
+function refreshAll(){ // 台股即時(TWSE)+加密即時(CoinGecko)+重拉雲端資料檔
+  refresh(true);
+  loadValuations();loadGlobal();loadETF();loadMacro();
+  cryptoLive();
+  if(filter==='heat')setTimeout(renderHeat,1500);
+}
+function renderHeat(){const list=$("#list");
+  const pers=[['d','日'],['w','週'],['m','月'],['q','季'],['y','年']];
+  const tw=Object.entries(VALMAP).map(([c,x])=>({sym:(byCode(c)||{}).name||c,price:(byCode(c)||{}).price||x.price,ret:x.ret}));
+  const gl=GLOBAL.filter(g=>g.type!=='etf');
+  let html=`<div class="sec">🔥 全市場總覽 ｜ 六類資產熱力圖 ｜ 週期：${({d:'日',w:'週',m:'月',q:'季',y:'年'})[heatPer]}</div>
+   <div class="swrow">${pers.map(([k,t])=>`<div class="chip${k===heatPer?' sel':''}" onclick="heatPer='${k}';renderHeat()">${t}</div>`).join('')}
+     <div class="chip" style="background:var(--gold);color:#1a1407;font-weight:700" onclick="refreshAll()">↻ 全部更新</div></div>`;
+  const sec=(t,items,lim,date)=>{ if(!items.length)return '';
+    return `<div class="sec" style="margin-top:10px">${t} <small style="color:var(--mut);font-weight:400">｜ ${items.length} 檔${date?` ｜ <span class="livedot"></span>${date}`:''}</small></div><div class="card">${hmTiles(items,heatPer,lim)}</div>`;};
+  html+=sec('🇹🇼 台股前50長青',tw,TW_LIM,(typeof VAL_DATE!=='undefined'?VAL_DATE:''));
+  html+=sec('🌍 全球個股',gl,TW_LIM,GLOBAL_DATE);
+  html+=sec('📊 ETF',ETFS,BE_LIM,ETF_DATE);
+  html+=sec('🛢 期貨',(MACRO&&MACRO.futures)||[],FUT_LIM,MACRO&&MACRO.date);
+  html+=sec('📜 債券ETF',(MACRO&&MACRO.bondEtf)||[],BE_LIM,'');
+  html+=sec('₿ 加密前50',CRYPTO,CRY_LIM,CRYPTO_DATE);
+  html+=`<div class="disc" style="margin-top:8px"><b>即時等級（誠實標示）</b>：台股＝盤中約20秒（證交所MIS）｜加密＝真即時（CoinGecko 直連）｜全球/ETF/期貨/債券＝雲端排程<b>盤中每2小時</b>快刷（Yahoo 擋瀏覽器直連代理，實測不可行）；本頁每5分鐘自動重拉資料檔。紅=漲、綠=跌（台股慣例），每格印數字（色覺輔助）。版面概念借鏡 Finviz Market Map。非投資建議。</div>`;
+  list.innerHTML=html;}
+setInterval(()=>{loadValuations();loadGlobal();loadETF();loadCrypto();loadMacro();},5*60*1000); // 前端每5分鐘輪詢資料檔
 // ===== 🎯 SWOT 象限圖(股價變動×品質;統計象限非投資建議) =====
 let VALMAP={},swotGrp='tw',swotPer='d',swotZoom=1,WRETS={};
 const SWOT_ZOOMS=[[1,'1×'],[2,'2×'],[4,'4×']];
