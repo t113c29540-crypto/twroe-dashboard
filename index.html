@@ -108,6 +108,11 @@
     border-radius:9px;padding:7px 4px;font-size:12.5px;font-weight:700;text-decoration:none;}
   .swrow{display:flex;gap:6px;margin:4px 0 8px;flex-wrap:wrap;}
   .swrow .chip{padding:5px 11px;}
+  .hm{display:grid;grid-template-columns:repeat(auto-fill,minmax(102px,1fr));gap:4px;}
+  .tile{border-radius:8px;padding:8px 9px;display:flex;flex-direction:column;gap:1px;min-height:56px;justify-content:center;}
+  .tile b{font-size:13px;}.tile span{font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;}
+  .tile small{font-size:10px;opacity:.85;}
+  .ycard{display:flex;justify-content:space-between;align-items:center;background:#0e1726;border:1px solid var(--line);border-radius:10px;padding:9px 13px;margin:5px 0;font-size:13.5px;}
 /*==ANALYSIS_CSS_BEGIN==*/
   .ana{display:block;width:100%;margin-top:9px;padding:10px;border-radius:10px;border:1px solid var(--gold);
     background:linear-gradient(90deg,rgba(201,162,39,.16),rgba(201,162,39,.05));color:var(--goldlt);
@@ -364,6 +369,8 @@ function render(){
   if(filter==='global'){ renderGlobal(); return; }
   if(filter==='etf'){ renderETF(); return; }
   if(filter==='swot'){ renderSwot(); return; }
+  if(filter==='crypto'){ renderCrypto(); return; }
+  if(filter==='macro'){ renderMacro(); return; }
   const list=$("#list");list.innerHTML="";
   const longList=LONGRANK().slice(0,topN);
   const sections=[
@@ -699,7 +706,7 @@ function renderSim(){const list=$("#list");
 function closeM(id){$("#"+id).classList.remove("show");}
 ['smask','nmask','pmask','fmask','vmask','amask'].forEach(id=>{const el=$("#"+id);if(el)el.addEventListener("click",e=>{if(e.target.id===id)closeM(id);});});
 
-const FILTERS=[["all","🇹🇼 台股"],["buy","🟢 估值偏低"],["long","長青排行"],["star","注目"],["watch","⭐ 自選"],["sim","💼 模擬"],["global","🌍 全球"],["etf","📊 ETF排名"],["swot","🎯 SWOT"],["perf","📈 回測"],["strat","🧭 估值口徑"]];
+const FILTERS=[["all","🇹🇼 台股"],["buy","🟢 估值偏低"],["long","長青排行"],["star","注目"],["watch","⭐ 自選"],["sim","💼 模擬"],["global","🌍 全球"],["etf","📊 ETF排名"],["crypto","₿ 加密50"],["macro","🛢 期貨/債券"],["swot","🎯 SWOT"],["perf","📈 回測"],["strat","🧭 估值口徑"]];
 function buildFilters(){const f=$("#filters");FILTERS.forEach(([k,t])=>{const c=document.createElement("div");c.className="chip"+(k==="all"?" sel":"");c.textContent=t;
   c.onclick=()=>{filter=k;[...f.children].forEach(x=>x.classList.remove("sel"));c.classList.add("sel");render();};f.appendChild(c);});}
 
@@ -863,6 +870,9 @@ const VA_FAQ=[
  {k:['excel','xls','pdf','列印','print'],
   zh:'「👤 個人檔」可匯出三種格式：JSON（可匯入、跨裝置同步）、Excel（.xls 閱讀存檔）、PDF（列印視窗選「另存為PDF」）。匯入僅支援 JSON——PDF 是列印格式、Excel 解析不可靠，這是誠實的技術限制。',
   en:'Profile exports: JSON (re-importable), Excel (.xls, readable), PDF (via print dialog). Import supports JSON only — PDF/Excel round-trips are unreliable by nature.'},
+ {k:['加密','比特幣','虛擬貨幣','crypto','bitcoin','期貨','債券','殖利率','futures','bond','yield'],
+  zh:'「₿ 加密50」列市值前50加密貨幣熱力圖（可即時更新；無基本面、波動極端）；「🛢 期貨/債券」列18檔主要期貨、美債殖利率與債券ETF。紅=漲、綠=跌，每格印數字。皆非投資建議。',
+  en:'₿ tab shows the top-50 cryptos by market cap as a heatmap (live-refreshable; no fundamentals, extreme volatility). 🛢 covers 18 major futures, US Treasury yields and bond ETFs. Red=up, green=down (Taiwan convention).'},
 ];
 function openVA(){$("#vmask").classList.add("show");setTimeout(()=>{try{$("#vaIn").focus()}catch(e){}},150);}
 function vaSetLang(l){vaLang=l;$("#vaZh").classList.toggle('sel',l==='zh');$("#vaEn").classList.toggle('sel',l==='en');
@@ -889,6 +899,72 @@ function vaMic(){const SR=window.SpeechRecognition||window.webkitSpeechRecogniti
     r.onerror=e=>vaPush('bot',(vaLang==='zh'?'辨識失敗：':'Recognition error: ')+e.error);
     r.start();
   }catch(e){vaPush('bot','啟動失敗:'+e);}}
+// ===== ₿ 加密前50 & 🛢 期貨/債券(熱力圖;紅=漲綠=跌台股慣例;色弱防護=每格印數字) =====
+let CRYPTO=[],CRYPTO_DATE='',MACRO=null,cryPer='d',macPer='d';
+const CRY_LIM={d:8,w:15,m:30,y:150},FUT_LIM={d:3,w:5,m:10,q:20,y:40},BE_LIM={d:1,w:2,m:4,q:8,y:15};
+function loadCrypto(){fetch('research/_gen/crypto.json',{cache:'no-store'}).then(r=>r.json()).then(j=>{
+  CRYPTO=j.coins||[];CRYPTO_DATE=j.date||'';if(filter==='crypto')renderCrypto();}).catch(()=>{});}
+function loadMacro(){fetch('research/_gen/macro.json',{cache:'no-store'}).then(r=>r.json()).then(j=>{
+  MACRO=j;if(filter==='macro')renderMacro();}).catch(()=>{});}
+async function cryptoLive(){ // 即時：CoinGecko API 為 CORS 開放,前端可直接刷新
+  try{
+    const r=await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&price_change_percentage=24h%2C7d%2C30d%2C1y');
+    const a=await r.json();if(!Array.isArray(a)||a.length<10)throw '回應異常';
+    const old={};CRYPTO.forEach(c=>old[c.sym]=c.spark);
+    CRYPTO=a.map(c=>({rank:c.market_cap_rank,sym:(c.symbol||'').toUpperCase(),name:c.name,
+      price:c.current_price,mcap:c.market_cap,
+      ret:{d:c.price_change_percentage_24h_in_currency,w:c.price_change_percentage_7d_in_currency,
+           m:c.price_change_percentage_30d_in_currency,y:c.price_change_percentage_1y_in_currency},
+      ath:c.ath_change_percentage,spark:old[(c.symbol||'').toUpperCase()]}));
+    CRYPTO_DATE='即時 '+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+    renderCrypto();
+  }catch(e){alert('即時更新失敗(CoinGecko限流或斷線,稍後再試)');}}
+function tileCol(v,lim){ // 發散色階:中性→紅(漲)/綠(跌),強度=|變動|/lim
+  if(v==null)return['#1a2a44','var(--mut)'];
+  const t=Math.min(1,Math.abs(v)/lim),c=v>=0?[224,64,58]:[34,160,107],b=[23,37,57];
+  const m=c.map((x,i)=>Math.round(b[i]+(x-b[i])*t));
+  return[`rgb(${m[0]},${m[1]},${m[2]})`,t>0.45?'#fff':'var(--tx)'];}
+function fmtP(p){if(p==null)return'—';return p>=1000?Math.round(p).toLocaleString('en'):p>=1?p.toFixed(2):p.toPrecision(3);}
+function hmTiles(items,per,lims){return '<div class="hm">'+items.map(it=>{
+  const v=(it.ret||{})[per],vv=(v==null?null:Math.round(v*10)/10);
+  const[bg,fg]=tileCol(vv,lims[per]||10);
+  return `<div class="tile" style="background:${bg};color:${fg}" title="${(it.name||'').replace(/"/g,'')} ｜ ${fmtP(it.price)}">
+    <b>${it.sym||it.code}</b><span>${vv!=null?(vv>0?'+':'')+vv+'%':'—'}</span><small>${fmtP(it.price)}</small></div>`;}).join('')+'</div>';}
+function sparkMini(sp){if(!sp||sp.length<5)return'';
+  const w=120,h=30,mn=Math.min(...sp),mx=Math.max(...sp),rg=(mx-mn)||1;
+  const pts=sp.map((v,i)=>`${(i/(sp.length-1)*w).toFixed(1)},${(h-2-(v-mn)/rg*(h-4)).toFixed(1)}`).join(' ');
+  const up=sp[sp.length-1]>=sp[0];
+  return `<svg viewBox="0 0 ${w} ${h}" style="width:120px;height:30px"><polyline points="${pts}" fill="none" stroke="${up?'#E0403A':'#22A06B'}" stroke-width="1.5"/></svg>`;}
+function renderCrypto(){const list=$("#list");
+  if(!CRYPTO.length){list.innerHTML='<div class="sec">₿ 加密貨幣前50</div><div style="color:var(--mut);text-align:center;padding:24px">載入中…</div>';return;}
+  const pers=[['d','24小時'],['w','7日'],['m','30日'],['y','1年']];
+  let html=`<div class="sec">₿ 加密貨幣市值前50 ｜ 熱力圖 ｜ 資料 ${CRYPTO_DATE}</div>
+   <div class="swrow">${pers.map(([k,t])=>`<div class="chip${k===cryPer?' sel':''}" onclick="cryPer='${k}';renderCrypto()">${t}</div>`).join('')}
+     <div class="chip" style="background:var(--gold);color:#1a1407;font-weight:700" onclick="cryptoLive()">↻ 即時更新</div></div>
+   <div class="card">${hmTiles(CRYPTO,cryPer,CRY_LIM)}</div>
+   <div class="sec" style="margin-top:12px">前8大 · 7日走勢</div>`;
+  CRYPTO.slice(0,8).forEach(c=>{const v=(c.ret||{})[cryPer];
+    html+=`<div class="ycard"><div><b>${c.sym}</b> <span style="color:var(--mut);font-size:11px">${c.name}</span><br>
+      <span style="font-size:15px;font-weight:700">$${fmtP(c.price)}</span>
+      <span class="${v>=0?'up':'down'}" style="font-size:12px;font-weight:700">${v!=null?(v>=0?'+':'')+v.toFixed(1)+'%':''}</span>
+      <span style="color:var(--mut);font-size:10.5px">距高點 ${c.ath!=null?c.ath.toFixed(0)+'%':'—'}</span></div>
+      ${sparkMini(c.spark)}</div>`;});
+  html+=`<div class="disc" style="margin-top:8px">出處：CoinGecko 公開 API（市值前50、USD 計價）；「↻ 即時更新」由瀏覽器直連 CoinGecko。⚠️ 加密貨幣<b>無基本面（無盈餘/ROE）</b>、24小時交易、波動極端且可能歸零；色磚紅=漲、綠=跌（台股慣例），每格已印數字（色覺輔助）。<b>非投資建議。</b></div>`;
+  list.innerHTML=html;}
+function renderMacro(){const list=$("#list");
+  if(!MACRO){list.innerHTML='<div class="sec">🛢 期貨/債券</div><div style="color:var(--mut);text-align:center;padding:24px">載入中…</div>';return;}
+  const pers=[['d','日'],['w','週'],['m','月'],['q','季'],['y','年']];
+  let html=`<div class="sec">🛢 全球主要期貨（18檔近月合約） ｜ 資料 ${MACRO.date}</div>
+   <div class="swrow">${pers.map(([k,t])=>`<div class="chip${k===macPer?' sel':''}" onclick="macPer='${k}';renderMacro()">${t}</div>`).join('')}</div>
+   <div class="card">${hmTiles(MACRO.futures||[],macPer,FUT_LIM)}</div>
+   <div class="sec" style="margin-top:12px">🏛 美國公債殖利率</div>`;
+  (MACRO.yields||[]).forEach(y=>{const c=y.bp>0?'up':y.bp<0?'down':'flat';
+    html+=`<div class="ycard"><span>${y.name} <small style="color:var(--mut)">${y.code}</small></span>
+      <span><b style="font-size:16px">${y.pct}%</b> <span class="${c}" style="font-size:12px;font-weight:700">${y.bp>0?'+':''}${y.bp} bp</span></span></div>`;});
+  html+=`<div class="sec" style="margin-top:12px">📜 債券ETF（利率/信用風險光譜）</div>
+   <div class="card">${hmTiles(MACRO.bondEtf||[],macPer,BE_LIM)}</div>
+   <div class="disc" style="margin-top:8px">出處：Yahoo Finance；殖利率為 CBOE 指數（^IRX/^FVX/^TNX/^TYX）。誠實範圍：期貨無公認「前50」清單——列 18 檔全球主要<b>近月合約</b>（有轉倉效應）；個別債券為 OTC 報價免費拿不到，以<b>殖利率＋債券ETF 為代理</b>。債券價格與殖利率反向。<b>非投資建議。</b></div>`;
+  list.innerHTML=html;}
 // ===== 🎯 SWOT 象限圖(股價變動×品質;統計象限非投資建議) =====
 let VALMAP={},swotGrp='tw',swotPer='d',swotZoom=1,WRETS={};
 const SWOT_ZOOMS=[[1,'1×'],[2,'2×'],[4,'4×']];
@@ -1183,7 +1259,7 @@ function renderStrat(){
 }
 
 /*==ANALYSIS_MODULE_END==*/
-buildFilters();buildTopN();setStatus();render();loadValuations();loadGlobal();loadETF();refresh();loop();
+buildFilters();buildTopN();setStatus();render();loadValuations();loadGlobal();loadETF();loadCrypto();loadMacro();refresh();loop();
 loadMarquee();setInterval(loadMarquee,10*60*1000);
 if(localStorage.getItem('twroe_push'))pushState(true);
 if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}

@@ -89,10 +89,14 @@ ol.refs{padding-left:22px;font-size:14px;line-height:2}
 <tr><td><b>SWOT 象限圖</b></td><td>動能×品質的橫斷面定位（日～年五週期）</td><td>四象限語意清楚；可縮放、圖文分開防疊字</td><td>「統計象限」非質性SWOT；O象限≠買點</td></tr>
 <tr><td><b>ETF 規模排名表</b></td><td>台股＋全球ETF同榜比較</td><td>規模換算美元可直接比大小</td><td>規模≠績效；台股ETF因規模小落中後段</td></tr>
 <tr><td><b>資料對帳表</b></td><td>兩條獨立路徑互相驗證（式1×式2）</td><td>自動抓資料異常，降低單源錯誤風險</td><td>差異多為時點差（財報落後市價），非皆錯誤</td></tr>
+<tr><td><b>加密貨幣熱力圖</b></td><td>市值前50的動能一覽（24h/7d/30d/1y）<sup><a href="#r10">[10]</a></sup></td><td>發散色階＋每格印數字（色覺輔助）；可即時刷新（CoinGecko CORS 開放）</td><td><b>無基本面</b>（無盈餘/ROE可言）；24小時交易、波動極端、可能歸零</td></tr>
+<tr><td><b>期貨／債券面板</b></td><td>18檔主要期貨熱力圖＋美債殖利率＋債券ETF<sup><a href="#r4">[4]</a><a href="#r11">[11]</a></sup></td><td>跨資產風險情緒一眼掌握；殖利率以基點標示變動</td><td>期貨為<b>近月合約</b>（轉倉效應）；個別債券為OTC不可得，以殖利率與ETF代理</td></tr>
 </table></div>
 
-<h2>五、設計借鏡（具名、誠實）</h2>
-<div class="card">本系統未「審計全球前十大網站」——那是無法驗證的說法；以下為實際借鏡的<b>具名</b>設計模式：<b>TradingView</b> 的圖表縮放與深色終端機視覺；<b>Finviz</b> 的象限／熱力配色與「圖上少字、名單另列」；<b>Morningstar</b> 的方法學註腳與公開估值文件風格；<b>Yahoo Finance</b> 的自選股操作流；<b>Bloomberg Terminal</b> 的深藍金高對比護眼配色。所有樣式為原創實作，未複製任何站台之程式或素材。</div>
+<h2>五、設計借鏡（具名、誠實、附出處）</h2>
+<div class="card">本系統未「審計全球前十大網站／大師」——那是無法驗證的說法；以下為實際借鏡的<b>具名</b>來源：<br>
+<b>產品模式</b>：<b>TradingView</b>（圖表縮放與深色終端機視覺）、<b>Finviz</b>（市場熱力圖 treemap 與「圖上少字、名單另列」）、<b>Morningstar</b>（方法學註腳與公開估值文件）、<b>Yahoo Finance</b>（自選股操作流）、<b>Bloomberg Terminal</b>（深藍金高對比護眼配色）。<br>
+<b>設計原則（文獻）</b>：Tufte 的 data-ink ratio——去除非資料墨水、圖表以資料為主體<sup><a href="#r12">[12]</a></sup>；Few 的儀表板設計——一屏一目的、避免裝飾性圖形<sup><a href="#r13">[13]</a></sup>；Nielsen 十大可用性原則——系統狀態可見（估值基準日、資料日期標示）與錯誤預防（品質關卡）<sup><a href="#r14">[14]</a></sup>。熱力圖採<b>發散色階</b>（紅漲/綠跌＋中性中點）；因紅綠對色覺障礙者不友善，<b>每格皆印有正負數字</b>作為次要編碼。所有樣式為原創實作，未複製任何站台之程式或素材。</div>
 
 <h2>六、已知限制與風險（請務必閱讀）</h2>
 <div class="warn">
@@ -101,7 +105,8 @@ ol.refs{padding-left:22px;font-size:14px;line-height:2}
 3. <b>美股回購扭曲 ROE</b>：大量庫藏股使股東權益縮小，Apple／Mastercard 之 ROE 破百為真值但與台股不可直接比較。<br>
 4. <b>資料源風險</b>：FinMind 免費層有流量限制；yfinance 為非官方介面，Yahoo 改版即失效——系統設有品質關卡（抓取不足即不發佈、不覆寫）。<br>
 5. <b>回測簡化</b>：年資料近似、未計手續費／稅負／滑價。<br>
-6. <b>非投資建議</b>：本系統作者非證券投資顧問；所有內容僅供研究教育，決策與盈虧自負。
+6. <b>加密貨幣／期貨／債券的先天限制</b>：加密貨幣無盈餘與淨值、無法適用本系統的 ROE 框架（僅提供價格與市值面）；期貨顯示近月合約，跨月轉倉會造成連續價格失真；「債券分析」實為殖利率指數與債券 ETF 之代理——個別債券為店頭（OTC）報價，免費公開資料不存在。<br>
+7. <b>非投資建議</b>：本系統作者非證券投資顧問；所有內容僅供研究教育，決策與盈虧自負。
 </div>
 
 <h2>七、English Executive Summary</h2>
@@ -118,6 +123,11 @@ ol.refs{padding-left:22px;font-size:14px;line-height:2}
 <li id="r7">最大回撤（Maximum Drawdown）：基金與投資組合風險揭露之標準指標，定義為波段峰值至谷值之最大跌幅。</li>
 <li id="r8">Bogle, J., <i>Common Sense on Mutual Funds</i>：關於分散投資與定期投入之長期實證討論。</li>
 <li id="r9">臺灣《證券投資信託及顧問法》：對不特定人提供個股買賣建議屬投顧業務，需經主管機關許可——本系統因此僅呈現統計位階、不提供買賣指示。</li>
+<li id="r10">CoinGecko 公開 API（加密貨幣市值排名、價格與歷史變動），https://www.coingecko.com/api</li>
+<li id="r11">CBOE 利率指數（^IRX／^FVX／^TNX／^TYX，美國公債殖利率），經 Yahoo Finance 介面取用。</li>
+<li id="r12">Tufte, E., <i>The Visual Display of Quantitative Information</i>：data-ink ratio 與圖表去裝飾原則。</li>
+<li id="r13">Few, S., <i>Information Dashboard Design</i>：儀表板單屏溝通與視覺層級原則。</li>
+<li id="r14">Nielsen, J., "10 Usability Heuristics for User Interface Design"，Nielsen Norman Group，https://www.nngroup.com</li>
 </ol></div>
 
 <div class="foot">版本：2026-07 ｜ 全部圖表由程式自動生成（純 SVG，無外部圖表庫）｜ 台股資料 [1][2][3]、全球資料 [4] ｜ 本報告與系統為教育用途之數據彙整，<b>非投資建議，盈虧自負</b>。</div>
