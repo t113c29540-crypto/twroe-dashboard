@@ -9,6 +9,7 @@
 ```
 _deploy/
 ├─ index.html              行動看板(PWA)
+├─ viewer.html             互動圖表閱覽器(排名/逐年ROE/股價區間/估值;滾輪縮放)
 ├─ manifest.webmanifest    PWA 設定
 ├─ sw.js                   離線 Service Worker
 ├─ icon-192/512.png, apple-touch-icon.png   App 圖示

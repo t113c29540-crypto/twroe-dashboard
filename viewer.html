@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>台股20年高ROE分析 — 本地閱覽器</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;   /* 圖表面 */
+    --page:      #f9f9f7;
+    --ink:       #0b0b0b;
+    --ink-2:     #52514e;
+    --muted:     #898781;
+    --grid:      #e1e0d9;
+    --baseline:  #c3c2b7;
+    --border:    rgba(11,11,11,0.10);
+    --series-1: #2a78d6; --series-2: #1baf7a; --series-3: #eda100;
+    --series-4: #008300; --series-5: #4a3aa7; --series-6: #e34948;
+    --seq-450:  #2a78d6; --seq-250: #86b6ef; --seq-150: #b7d3f6;
+    --good:     #0ca30c; --warn: #fab219; --serious: #ec835a;
+    --good-text:#006300;
+    --context:  #b9b7ae;  /* 未選取序列的弱化線 */
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --page: #0d0d0d;
+      --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+      --grid: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,0.10);
+      --series-1: #3987e5; --series-2: #199e70; --series-3: #c98500;
+      --series-4: #008300; --series-5: #9085e9; --series-6: #e66767;
+      --seq-450: #3987e5; --seq-250: #1c5cab; --seq-150: #184f95;
+      --good-text: #0ca30c;
+      --context: #4a4a46;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --page: #0d0d0d;
+    --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,0.10);
+    --series-1: #3987e5; --series-2: #199e70; --series-3: #c98500;
+    --series-4: #008300; --series-5: #9085e9; --series-6: #e66767;
+    --seq-450: #3987e5; --seq-250: #1c5cab; --seq-150: #184f95;
+    --good-text: #0ca30c;
+    --context: #4a4a46;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--page); color: var(--ink);
+    font: 14px/1.55 system-ui, -apple-system, "Segoe UI", "PingFang TC",
+          "Microsoft JhengHei", sans-serif;
+  }
+  header {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 14px 20px 0;
+  }
+  header h1 { font-size: 17px; font-weight: 650; margin: 0; }
+  header .src { color: var(--muted); font-size: 12px; }
+  nav { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
+  nav button, .btn {
+    border: 1px solid var(--border); background: var(--surface-1);
+    color: var(--ink-2); border-radius: 8px; padding: 6px 14px;
+    font: inherit; font-size: 13px; cursor: pointer;
+  }
+  nav button[aria-selected="true"] { color: var(--ink); font-weight: 650;
+    border-color: var(--baseline); box-shadow: inset 0 -2px 0 var(--seq-450); }
+  nav button:hover, .btn:hover { color: var(--ink); }
+  main { padding: 14px 20px 8px; }
+  section[hidden] { display: none; }
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 16px;
+  }
+  .card h2 { font-size: 14px; font-weight: 650; margin: 0 0 2px; }
+  .card .sub { color: var(--muted); font-size: 12px; margin: 0 0 10px; }
+  .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; }
+  .toolbar .gap { flex: 1; }
+  .hint { color: var(--muted); font-size: 12px; }
+  /* 股票 chips（兼作圖例：色鍵短線 + 名稱） */
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--border); border-radius: 999px;
+    background: transparent; color: var(--ink-2);
+    padding: 4px 12px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .chip .key { width: 14px; height: 0; border-top: 3px solid var(--context); border-radius: 2px; }
+  .chip[aria-pressed="true"] { color: var(--ink); border-color: var(--baseline); font-weight: 600; }
+  .chip:hover { color: var(--ink); }
+  /* 圖表 */
+  .chartwrap { position: relative; }
+  .chartwrap svg { display: block; width: 100%; touch-action: none; border-radius: 8px; }
+  .chartwrap svg:focus-visible { outline: 2px solid var(--seq-450); outline-offset: 2px; }
+  .tooltip {
+    position: absolute; pointer-events: none; z-index: 5; display: none;
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px; box-shadow: 0 4px 16px rgba(0,0,0,.14);
+    font-size: 12.5px; min-width: 130px;
+  }
+  .tooltip .tt-title { color: var(--muted); margin-bottom: 4px; }
+  .tooltip .tt-row { display: flex; align-items: center; gap: 7px; padding: 1px 0; }
+  .tooltip .tt-key { width: 12px; height: 0; border-top: 3px solid; border-radius: 2px; flex: none; }
+  .tooltip .tt-val { font-weight: 650; font-variant-numeric: tabular-nums; }
+  .tooltip .tt-name { color: var(--ink-2); }
+  /* 表格 */
+  .tblwrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 6px 10px; text-align: right; white-space: nowrap;
+    font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--grid); }
+  th { color: var(--ink-2); font-weight: 600; cursor: pointer; user-select: none;
+    position: sticky; top: 0; background: var(--surface-1); }
+  th .arrow { color: var(--muted); font-size: 10px; }
+  th:first-child, td:first-child, th.lft, td.lft { text-align: left; }
+  tbody tr:hover { background: color-mix(in srgb, var(--seq-450) 6%, transparent); }
+  tbody tr.click { cursor: pointer; }
+  td .bar { display: inline-block; vertical-align: middle; height: 8px;
+    border-radius: 0 4px 4px 0; background: var(--seq-450); margin-right: 6px; }
+  td .barbox { display: inline-flex; align-items: center; width: 110px; }
+  /* 估值狀態 chip：圖示＋文字，非僅顏色 */
+  .status { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; white-space: nowrap; }
+  .status .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .status.buy  .dot { background: var(--good); }
+  .status.fair .dot { background: var(--muted); }
+  .status.wait .dot { background: var(--serious); }
+  /* 價格位置軌道 */
+  .track { position: relative; width: 130px; height: 14px; display: inline-block; vertical-align: middle; }
+  .track .rail { position: absolute; left: 0; right: 0; top: 6px; height: 3px;
+    background: var(--grid); border-radius: 2px; }
+  .track .tick { position: absolute; top: 3px; width: 1px; height: 9px; background: var(--baseline); }
+  .track .pin { position: absolute; top: 3px; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--ink); border: 2px solid var(--surface-1); transform: translateX(-50%); }
+  /* 現價超出軌道量程時改畫三角箭頭，明示「超出刻度」而非停在端點 */
+  .track .pin.over, .track .pin.under { width: 0; height: 0; background: none; border-radius: 0;
+    border-top: 5px solid transparent; border-bottom: 5px solid transparent; transform: none; }
+  .track .pin.over  { border-left: 9px solid var(--ink); border-right: none; right: -3px; left: auto; }
+  .track .pin.under { border-right: 9px solid var(--ink); border-left: none; left: -3px; }
+  footer { color: var(--muted); font-size: 12px; padding: 8px 20px 20px; }
+  .err { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    margin: 40px auto; max-width: 560px; padding: 24px; }
+  kbd { border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; font-size: 11px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+window.ROE_DATA = {"meta":{"source":"台股20年高ROE分析.xlsx","sheets":["排名總表","逐年ROE(2010-2025)","逐年最高價(2006-2025)","逐年最低價(2006-2025)","估值與買進建議"],"convertedBy":"convert.js (node, 純本地零依賴)"},"summary":[{"排名":1,"代號":"5904","名稱":"寶雅","ROE>15%年數":"16/16","平均ROE%":36.6,"中位ROE%":38.2,"最低ROE%":16.6,"含息IRR%":22.1,"持有年數":20.4,"期初價":27.1,"現價":582,"20年累積配息":192.3,"便宜價":386.5,"合理價":556.5,"現價/合理價":1.05},{"排名":2,"代號":"2912","名稱":"統一超","ROE>15%年數":"16/16","平均ROE%":33.5,"中位ROE%":29.9,"最低ROE%":25.1,"含息IRR%":11.7,"持有年數":20.4,"期初價":67.9,"現價":222,"20年累積配息":146.3,"便宜價":261.6,"合理價":295.7,"現價/合理價":0.75},{"排名":3,"代號":"9910","名稱":"豐泰","ROE>15%年數":"16/16","平均ROE%":27.3,"中位ROE%":27.9,"最低ROE%":16.7,"含息IRR%":10.3,"持有年數":20.4,"期初價":35.25,"現價":78.5,"20年累積配息":71.8,"便宜價":70.4,"合理價":125.4,"現價/合理價":0.63},{"排名":4,"代號":"2330","名稱":"台積電","ROE>15%年數":"16/16","平均ROE%":25.2,"中位ROE%":24.4,"最低ROE%":20.3,"含息IRR%":21.6,"持有年數":20.4,"期初價":61,"現價":2295,"20年累積配息":147.5,"便宜價":762.1,"合理價":883.9,"現價/合理價":2.6},{"排名":5,"代號":"1232","名稱":"大統益","ROE>15%年數":"16/16","平均ROE%":23.7,"中位ROE%":23.4,"最低ROE%":17.7,"含息IRR%":22.1,"持有年數":20.4,"期初價":16.5,"現價":148,"20年累積配息":86.3,"便宜價":116.2,"合理價":150.9,"現價/合理價":0.98},{"排名":6,"代號":"1477","名稱":"聚陽","ROE>15%年數":"16/16","平均ROE%":23.1,"中位ROE%":23.8,"最低ROE%":15.8,"含息IRR%":17,"持有年數":20.4,"期初價":43.4,"現價":225,"20年累積配息":168.5,"便宜價":188.5,"合理價":269.2,"現價/合理價":0.84},{"排名":7,"代號":"2395","名稱":"研華","ROE>15%年數":"16/16","平均ROE%":22.3,"中位ROE%":22.6,"最低ROE%":17,"含息IRR%":11.6,"持有年數":20.4,"期初價":89.5,"現價":471,"20年累積配息":120,"便宜價":244.1,"合理價":349.2,"現價/合理價":1.35},{"排名":8,"代號":"1476","名稱":"儒鴻","ROE>15%年數":"15/16","平均ROE%":25.8,"中位ROE%":25.2,"最低ROE%":14.1,"含息IRR%":24.5,"持有年數":20.4,"期初價":15.55,"現價":337.5,"20年累積配息":152,"便宜價":359.7,"合理價":503.5,"現價/合理價":0.67},{"排名":9,"代號":"2207","名稱":"和泰車","ROE>15%年數":"15/16","平均ROE%":22.9,"中位ROE%":23.6,"最低ROE%":14.9,"含息IRR%":14.6,"持有年數":20.4,"期初價":79.6,"現價":473,"20年累積配息":207.5,"便宜價":490,"合理價":644.4,"現價/合理價":0.73},{"排名":10,"代號":"9917","名稱":"中保科","ROE>15%年數":"15/16","平均ROE%":19.6,"中位ROE%":19.9,"最低ROE%":11.2,"含息IRR%":9.6,"持有年數":20.4,"期初價":50,"現價":116.5,"20年累積配息":77.2,"便宜價":100.4,"合理價":120.7,"現價/合理價":0.97},{"排名":11,"代號":"2308","名稱":"台達電","ROE>15%年數":"15/16","平均ROE%":17.4,"中位ROE%":17.2,"最低ROE%":14.1,"含息IRR%":21.4,"持有年數":20.4,"期初價":65.6,"現價":2255,"20年累積配息":106.4,"便宜價":343.7,"合理價":446.4,"現價/合理價":5.05},{"排名":12,"代號":"1723","名稱":"中碳","ROE>15%年數":"14/16","平均ROE%":22.9,"中位ROE%":20.1,"最低ROE%":12.2,"含息IRR%":14.9,"持有年數":20.4,"期初價":41.5,"現價":84.3,"20年累積配息":107.2,"便宜價":74.2,"合理價":92.5,"現價/合理價":0.91},{"排名":13,"代號":"1707","名稱":"葡萄王","ROE>15%年數":"13/16","平均ROE%":22.5,"中位ROE%":22.9,"最低ROE%":13.9,"含息IRR%":27.5,"持有年數":20.4,"期初價":8.62,"現價":100.5,"20年累積配息":92.2,"便宜價":141.9,"合理價":173.8,"現價/合理價":0.58},{"排名":14,"代號":"3008","名稱":"大立光","ROE>15%年數":"12/16","平均ROE%":24,"中位ROE%":23.6,"最低ROE%":11.9,"含息IRR%":12.8,"持有年數":20.4,"期初價":519,"現價":3535,"20年累積配息":1013.9,"便宜價":2643.6,"合理價":4252.7,"現價/合理價":0.83},{"排名":15,"代號":"3023","名稱":"信邦","ROE>15%年數":"12/16","平均ROE%":18.9,"中位ROE%":20.8,"最低ROE%":7.1,"含息IRR%":15.8,"持有年數":20.4,"期初價":31.85,"現價":322.5,"20年累積配息":81,"便宜價":148.7,"合理價":197,"現價/合理價":1.64},{"排名":16,"代號":"1227","名稱":"佳格","ROE>15%年數":"12/16","平均ROE%":17.7,"中位ROE%":18.6,"最低ROE%":7.1,"含息IRR%":13.4,"持有年數":20.4,"期初價":13.1,"現價":28.3,"20年累積配息":34.4,"便宜價":35.3,"合理價":42,"現價/合理價":0.67},{"排名":17,"代號":"9921","名稱":"巨大","ROE>15%年數":"11/16","平均ROE%":16.9,"中位ROE%":18.9,"最低ROE%":3.4,"含息IRR%":7.7,"持有年數":20.4,"期初價":63,"現價":70.6,"20年累積配息":101,"便宜價":167.9,"合理價":231.6,"現價/合理價":0.3},{"排名":18,"代號":"9914","名稱":"美利達","ROE>15%年數":"10/16","平均ROE%":19.6,"中位ROE%":20.8,"最低ROE%":6.8,"含息IRR%":17.8,"持有年數":20.4,"期初價":21,"現價":68,"20年累積配息":87.1,"便宜價":147.1,"合理價":195.7,"現價/合理價":0.35},{"排名":19,"代號":"1215","名稱":"卜蜂","ROE>15%年數":"10/16","平均ROE%":15.1,"中位ROE%":16.1,"最低ROE%":3.2,"含息IRR%":26.3,"持有年數":20.4,"期初價":4.5,"現價":115,"20年累積配息":50.2,"便宜價":73.8,"合理價":82.2,"現價/合理價":1.4},{"排名":20,"代號":"2454","名稱":"聯發科","ROE>15%年數":"9/16","平均ROE%":17.2,"中位ROE%":16,"最低ROE%":7.8,"含息IRR%":14.2,"持有年數":20.4,"期初價":398.5,"現價":4070,"20年累積配息":534,"便宜價":832.3,"合理價":1260.7,"現價/合理價":3.23},{"排名":21,"代號":"1216","名稱":"統一","ROE>15%年數":"9/16","平均ROE%":16.6,"中位ROE%":15.2,"最低ROE%":12.4,"含息IRR%":14.1,"持有年數":20.4,"期初價":14.8,"現價":72.9,"20年累積配息":40.3,"便宜價":70.1,"合理價":79.7,"現價/合理價":0.91},{"排名":22,"代號":"2474","名稱":"可成","ROE>15%年數":"8/16","平均ROE%":13.7,"中位ROE%":15.2,"最低ROE%":6.3,"含息IRR%":2,"持有年數":20.4,"期初價":265,"現價":220,"20年累積配息":152.8,"便宜價":212.4,"合理價":297.1,"現價/合理價":0.74},{"排名":23,"代號":"2049","名稱":"上銀","ROE>15%年數":"7/16","平均ROE%":15.5,"中位ROE%":12.7,"最低ROE%":5,"含息IRR%":12.8,"持有年數":19,"期初價":51.7,"現價":329.5,"20年累積配息":53.7,"便宜價":150.9,"合理價":277,"現價/合理價":1.19},{"排名":24,"代號":"6505","名稱":"台塑化","ROE>15%年數":"5/16","平均ROE%":12,"中位ROE%":10.8,"最低ROE%":1.8,"含息IRR%":5.4,"持有年數":20.4,"期初價":58.7,"現價":52.6,"20年累積配息":62.6,"便宜價":44.2,"合理價":65,"現價/合理價":0.81},{"排名":25,"代號":"2412","名稱":"中華電","ROE>15%年數":"0/16","平均ROE%":10.6,"中位ROE%":10.5,"最低ROE%":8.9,"含息IRR%":10.6,"持有年數":20.4,"期初價":56.6,"現價":138.5,"20年累積配息":93,"便宜價":89,"合理價":111.7,"現價/合理價":1.24}],"roe":{"years":[2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025],"stocks":[{"code":"5904","name":"寶雅","values":[16.6,18.3,22.6,26.4,28.5,34.6,36.8,39.7,43.3,44.9,51.1,51,35.8,45,46.3,45]},{"code":"2912","name":"統一超","values":[25.1,29.5,30.2,32.9,35.7,33.1,32.6,35.9,72.2,38.6,29.5,29,26.5,27.5,28.6,28.3]},{"code":"9910","name":"豐泰","values":[18.6,17.5,16.7,21.2,26,30.9,34.5,33.8,33.6,36.7,34.8,28.2,27.5,31.6,23.2,22.1]},{"code":"2330","name":"台積電","values":[22.9,27.2,21.7,23.2,22.7,26.7,24.2,24.7,22.6,20.3,24.1,27.8,29.3,31.7,24.7,29.3]},{"code":"1232","name":"大統益","values":[19.9,22.7,19.4,17.7,22.6,27.9,26.5,23.9,23.4,25.2,25,30.2,26.4,22.1,23,23.3]},{"code":"1477","name":"聚陽","values":[23.9,24.2,26,25.7,25.8,22.5,23.6,16.2,15.8,19.2,20.7,19.9,21.9,25.7,28.9,29.9]},{"code":"2395","name":"研華","values":[17,23.6,21.6,20.6,22.2,22.8,22.6,22.7,22.6,22.6,23.9,22.7,24.4,26.3,21.2,19.5]},{"code":"1476","name":"儒鴻","values":[14.1,22.2,27.1,30,34.1,34.3,30.9,24,24.7,25.9,22.9,25.5,26.5,25,22.6,23.4]},{"code":"2207","name":"和泰車","values":[18,21.4,23.7,24.2,24.8,26.8,24.8,24.6,21.5,20.3,21.6,23.5,20.8,14.9,29.9,25.7]},{"code":"9917","name":"中保科","values":[16.8,19,18.8,19.7,19.9,19.9,19.2,11.2,18.2,20.2,20.4,22.2,22.8,21.6,21.6,22.5]}]},"high":{"years":[2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025],"stocks":[{"code":"5904","name":"寶雅","values":[31.5,33.65,29.25,30.65,37.7,51.7,76.7,200,258,402,488,428,382.5,463.5,660,656,503,627,562,533]},{"code":"2912","name":"統一超","values":[81.4,102.5,122.5,89.8,138,195,172,229,253,259,268.5,290,378,324.5,311.5,294,299,295,306,269.5]},{"code":"9910","name":"豐泰","values":[37.3,30.95,26.2,30.2,35,33.35,34.95,79.7,96.2,212,189,151.5,211.5,264.5,205,254.5,240,219.5,177,142]},{"code":"2330","name":"台積電","values":[70,73.1,69.8,65.2,75,78.3,99.4,116.5,142,155,193,245,268,345,530,679,688,594,1100,1550]},{"code":"1232","name":"大統益","values":[21,34,48.35,40.4,55.7,56.1,52.8,69,83.5,81,88.5,96.2,102,132.5,145,181.5,164.5,154,157.5,169]},{"code":"1477","name":"聚陽","values":[70.9,104,74.8,62.9,82.2,79.2,91.8,189,178,300,235,151.5,184.5,228,207,291.5,272,403,467.5,395]},{"code":"2395","name":"研華","values":[117,120.5,84.9,76.8,86.2,102,122.5,209.5,283,278,289.5,273.5,239,320,360,409.5,407,430,432,425]},{"code":"1476","name":"儒鴻","values":[19.5,26.5,18.2,21.8,48.9,53.9,107,390.5,407,549,483.5,401,425,458.5,430,683,660,598,593,569]},{"code":"2207","name":"和泰車","values":[84.3,94,102.5,85.7,96.2,173.5,261,415,513,542,385.5,403.5,388,719,767,669,660,885,718,655]},{"code":"9917","name":"中保科","values":[67.1,70,70,54.5,59.5,58.9,67.7,77.2,88.5,101,97,95,92.7,90,91.3,107,114.5,129,149.5,127.5]}]},"low":{"years":[2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025],"stocks":[{"code":"5904","name":"寶雅","values":[19.95,18.1,17,21.9,27.35,28.3,34.6,75.8,165.5,229.5,295,351.5,236,293.5,396,410,259,459.5,468.5,429]},{"code":"2912","name":"統一超","values":[64.5,73.9,65.9,68.9,71.9,119.5,135,154,181,191.5,188,222.5,272,280,253,253.5,258,256,262,220.5]},{"code":"9910","name":"豐泰","values":[23.9,24.2,13.75,15,25.9,23.65,25.8,34,62.9,91.9,107.5,110.5,123,176.5,115.5,178,148.5,166.5,128.5,88]},{"code":"2330","name":"台積電","values":[52.3,57.4,36.4,38.7,57,62.2,73.8,92.9,100.5,112.5,130.5,179,210,206.5,235.5,518,370,443,574,780]},{"code":"1232","name":"大統益","values":[15.95,20.2,20,23.8,35.1,45.8,46.2,51.1,60.3,66.5,72.9,84.1,89.9,97.7,91.5,127,138.5,140,140,140]},{"code":"1477","name":"聚陽","values":[41.6,65.6,20.9,22.95,57,63.3,69,90.5,138,165,103.5,109,122.5,141.5,96.7,183.5,134,201,303.5,222]},{"code":"2395","name":"研華","values":[82.4,62,34.1,38.75,58.2,76,81.8,117.5,178,188,194.5,197,186.5,210,219,303.5,269,321.5,298,271]},{"code":"1476","name":"儒鴻","values":[13.1,15.8,8,9.22,18.7,30.7,45.05,104,212.5,297,278,263,263.5,336,201,393,377,448.5,461,320]},{"code":"2207","name":"和泰車","values":[60,73,44,44,62.8,80.9,138,223,343.5,294,270.5,336,200.5,244.5,335.5,515,540,574,585,532]},{"code":"9917","name":"中保科","values":[47,46.25,34.5,40.6,48.4,50.1,53.5,64,74.3,77.3,86.2,86.6,83.6,85,75.4,86.1,89.7,97.9,115,105]}]},"valuation":[{"排名":1,"代號":"5904","名稱":"寶雅","現價":582,"目前本益比":18.51,"目前股價淨值比":9.7,"目前殖利率%":4.38,"近4季EPS":31.45,"每股淨值":60,"便宜價(積極)":386.5,"合理價":556.5,"昂貴價參考":695.6,"建議":"高於合理價，建議等回檔"},{"排名":2,"代號":"2912","名稱":"統一超","現價":222,"目前本益比":20.24,"目前股價淨值比":4.97,"目前殖利率%":4.05,"近4季EPS":10.96,"每股淨值":44.7,"便宜價(積極)":261.6,"合理價":295.7,"昂貴價參考":369.6,"建議":"現價已低於便宜價，可分批買進"},{"排名":3,"代號":"9910","名稱":"豐泰","現價":78.5,"目前本益比":16.99,"目前股價淨值比":2.9,"目前殖利率%":5.22,"近4季EPS":4.62,"每股淨值":27.1,"便宜價(積極)":70.4,"合理價":125.4,"昂貴價參考":156.8,"建議":"介於便宜~合理價，合理區間"},{"排名":4,"代號":"2330","名稱":"台積電","現價":2295,"目前本益比":30.86,"目前股價淨值比":10.1,"目前殖利率%":0.96,"近4季EPS":74.39,"每股淨值":227.2,"便宜價(積極)":762.1,"合理價":883.9,"昂貴價參考":1104.9,"建議":"高於合理價，建議等回檔"},{"排名":5,"代號":"1232","名稱":"大統益","現價":148,"目前本益比":17.11,"目前股價淨值比":3.77,"目前殖利率%":4.86,"近4季EPS":8.65,"每股淨值":39.3,"便宜價(積極)":116.2,"合理價":150.9,"昂貴價參考":188.6,"建議":"介於便宜~合理價，合理區間"},{"排名":6,"代號":"1477","名稱":"聚陽","現價":225,"目前本益比":16.25,"目前股價淨值比":4.27,"目前殖利率%":6.67,"近4季EPS":13.85,"每股淨值":52.7,"便宜價(積極)":188.5,"合理價":269.2,"昂貴價參考":336.5,"建議":"介於便宜~合理價，合理區間"},{"排名":7,"代號":"2395","名稱":"研華","現價":471,"目前本益比":36.54,"目前股價淨值比":8.24,"目前殖利率%":2.38,"近4季EPS":12.93,"每股淨值":57.2,"便宜價(積極)":244.1,"合理價":349.2,"昂貴價參考":436.5,"建議":"高於合理價，建議等回檔"},{"排名":8,"代號":"1476","名稱":"儒鴻","現價":337.5,"目前本益比":16.33,"目前股價淨值比":3.37,"目前殖利率%":4.44,"近4季EPS":20.67,"每股淨值":100.1,"便宜價(積極)":359.7,"合理價":503.5,"昂貴價參考":629.4,"建議":"現價已低於便宜價，可分批買進"},{"排名":9,"代號":"2207","名稱":"和泰車","現價":473,"目前本益比":13.85,"目前股價淨值比":3.33,"目前殖利率%":4.23,"近4季EPS":34.15,"每股淨值":142,"便宜價(積極)":490,"合理價":644.4,"昂貴價參考":805.5,"建議":"現價已低於便宜價，可分批買進"},{"排名":10,"代號":"9917","名稱":"中保科","現價":116.5,"目前本益比":17.18,"目前股價淨值比":3.61,"目前殖利率%":5.32,"近4季EPS":6.78,"每股淨值":32.3,"便宜價(積極)":100.4,"合理價":120.7,"昂貴價參考":150.9,"建議":"介於便宜~合理價，合理區間"}]};
+</script>
+<script>
+'use strict';
+(function () {
+  const app = document.getElementById('app');
+  if (!window.ROE_DATA) {
+    app.innerHTML = '<div class="err"><h2>找不到資料（data.js）</h2>' +
+      '<p>請先在本資料夾執行轉換腳本產生資料：</p>' +
+      '<p><code>node convert.js</code>（或 <code>bun convert.js</code>）</p></div>';
+    return;
+  }
+  const D = window.ROE_DATA;
+  const valByCode = new Map(D.valuation.map(v => [String(v['代號']), v]));
+  const SLOT_VARS = ['--series-1','--series-2','--series-3','--series-4','--series-5','--series-6'];
+  const MAX_SEL = 6;
+  const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  const fmt = (v, d) => (v == null || Number.isNaN(v)) ? '–'
+    : Number(v).toLocaleString('zh-Hant', { minimumFractionDigits: 0, maximumFractionDigits: d ?? 2 });
+
+  // ---------- 版面骨架 ----------
+  const el = (tag, attrs, ...kids) => {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (k === 'text') n.textContent = v;
+      else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
+      else n.setAttribute(k, v);
+    }
+    for (const k of kids) if (k) n.append(k);
+    return n;
+  };
+  const svgEl = (tag, attrs) => {
+    const n = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (const [k, v] of Object.entries(attrs || {})) n.setAttribute(k, v);
+    return n;
+  };
+
+  const TABS = [
+    { id: 'summary', label: '排名總表' },
+    { id: 'roe',     label: '逐年 ROE' },
+    { id: 'price',   label: '股價區間' },
+    { id: 'val',     label: '估值與建議' },
+  ];
+  const header = el('header', {},
+    el('h1', { text: '台股 20 年高 ROE 分析' }),
+    el('span', { class: 'src', text: '來源：' + D.meta.source + '（靜態頁面，資料已內嵌、無外部連線）' }),
+    el('a', { class: 'src', href: './index.html', text: '← 回行動看板' }));
+  const nav = el('nav', { role: 'tablist' });
+  const themeBtn = el('button', { class: 'btn', title: '切換深淺色', text: '◐ 主題', onclick: () => {
+    const root = document.documentElement;
+    const dark = root.getAttribute('data-theme') === 'dark' ||
+      (!root.hasAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
+    root.setAttribute('data-theme', dark ? 'light' : 'dark');
+    try { localStorage.setItem('roeviewer-theme', root.getAttribute('data-theme')); } catch (e) {}
+    renderAll();
+  }});
+  try {
+    const saved = localStorage.getItem('roeviewer-theme');
+    if (saved) document.documentElement.setAttribute('data-theme', saved);
+  } catch (e) {}
+  // SVG 內的顏色是 render 時解析的定值：OS 自動切換深淺色時必須重繪，
+  // 否則圖表會停留在舊主題
+  try {
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => renderAll());
+  } catch (e) {}
+  nav.append(themeBtn);
+  header.append(nav);
+  const main = el('main');
+  const sections = {};
+  for (const t of TABS) {
+    const btn = el('button', { role: 'tab', 'aria-selected': 'false', text: t.label, onclick: () => selectTab(t.id) });
+    nav.insertBefore(btn, themeBtn);
+    t.btn = btn;
+    sections[t.id] = el('section', { id: 'view-' + t.id, hidden: '' });
+    main.append(sections[t.id]);
+  }
+  app.append(header, main, el('footer', {},
+    el('span', { text: '互動：圖表上「滾輪＝縮放（以游標為中心）・拖曳＝平移・雙擊＝重置」；鍵盤 ' }),
+    el('kbd', { text: '←→' }), el('span', { text: ' 平移、' }),
+    el('kbd', { text: '+ / −' }), el('span', { text: ' 縮放、' }),
+    el('kbd', { text: '0' }), el('span', { text: ' 重置。表頭可點擊排序。' })));
+
+  function selectTab(id) {
+    for (const t of TABS) {
+      t.btn.setAttribute('aria-selected', String(t.id === id));
+      sections[t.id].toggleAttribute('hidden', t.id !== id);
+    }
+    renderAll();
+  }
+
+  // ---------- 可排序表格 ----------
+  function sortableTable(cols, rows, opts) {
+    // cols: {key, label, num, left, render(row)->node|string}
+    const wrap = el('div', { class: 'tblwrap' });
+    const table = el('table');
+    const thead = el('thead'); const trh = el('tr');
+    const tbody = el('tbody');
+    let sortKey = opts && opts.initKey, asc = true;
+    const draw = () => {
+      const sorted = rows.slice();
+      if (sortKey != null) {
+        const col = cols.find(c => c.key === sortKey);
+        sorted.sort((a, b) => {
+          let x = a[sortKey], y = b[sortKey];
+          if (col.num) { x = (x == null) ? -Infinity : +x; y = (y == null) ? -Infinity : +y; return asc ? x - y : y - x; }
+          return asc ? String(x).localeCompare(String(y), 'zh-Hant') : String(y).localeCompare(String(x), 'zh-Hant');
+        });
+      }
+      tbody.replaceChildren();
+      for (const r of sorted) {
+        const tr = el('tr');
+        for (const c of cols) {
+          const td = el('td', c.left ? { class: 'lft' } : {});
+          const out = c.render ? c.render(r) : fmt(r[c.key], c.dec);
+          if (out instanceof Node) td.append(out); else td.textContent = out;
+          tr.append(td);
+        }
+        if (opts && opts.onRow) { tr.classList.add('click'); tr.addEventListener('click', () => opts.onRow(r)); }
+        tbody.append(tr);
+      }
+      for (const c of cols) c.th.querySelector('.arrow').textContent =
+        c.key === sortKey ? (asc ? ' ▲' : ' ▼') : '';
+    };
+    for (const c of cols) {
+      const th = el('th', c.left ? { class: 'lft' } : {}, el('span', { text: c.label }), el('span', { class: 'arrow' }));
+      th.addEventListener('click', () => {
+        if (sortKey === c.key) asc = !asc; else { sortKey = c.key; asc = !c.num; }
+        draw();
+      });
+      c.th = th; trh.append(th);
+    }
+    thead.append(trh); table.append(thead, tbody); wrap.append(table);
+    if (opts && opts.initKey) { asc = !(cols.find(c => c.key === opts.initKey) || {}).num ? true : true; }
+    draw();
+    return wrap;
+  }
+
+  // ---------- 縮放式折線圖引擎 ----------
+  // series: [{name, color(css var name)|'context', values:[{x,y}...], width}]
+  // bands:  [{color, lo:[{x,y}], hi:[{x,y}]}]
+  // refs:   [{y, label, color}]
+  function zoomChart(opts) {
+    const wrap = el('div', { class: 'chartwrap' });
+    const svg = svgEl('svg', { tabindex: '0', role: 'img', 'aria-label': opts.ariaLabel || '互動圖表' });
+    const tip = el('div', { class: 'tooltip' });
+    wrap.append(svg, tip);
+    const M = { t: 20, r: opts.rightPad ?? 96, b: 30, l: 48 };
+    const H = opts.height || 380;
+    const full = opts.xExtent.slice(); // [x0,x1]
+    let dom = full.slice();
+    let W = 800;
+    let state = { series: [], bands: [], refs: [], yLabel: opts.yLabel || '' };
+
+    const xTo = x => M.l + (x - dom[0]) / (dom[1] - dom[0]) * (W - M.l - M.r);
+    const xFrom = px => dom[0] + (px - M.l) / (W - M.l - M.r) * (dom[1] - dom[0]);
+
+    function niceTicks(a, b, n) {
+      const span = b - a; if (span <= 0) return [a];
+      const step0 = span / Math.max(1, n);
+      const mag = Math.pow(10, Math.floor(Math.log10(step0)));
+      let step = mag;
+      for (const m of [1, 2, 5, 10]) if (mag * m >= step0) { step = mag * m; break; }
+      const out = [];
+      for (let v = Math.ceil(a / step) * step; v <= b + 1e-9; v += step) out.push(+v.toFixed(10));
+      return out;
+    }
+
+    function yDomain() {
+      let lo = Infinity, hi = -Infinity;
+      const seen = (x, y) => { if (y == null) return; if (x < dom[0] - 1e-9 || x > dom[1] + 1e-9) return;
+        if (y < lo) lo = y; if (y > hi) hi = y; };
+      // y 域以「選取的序列」為準（強調式設計）；全未選取時退回納入灰線，
+      // 避免 y 域塌縮成只剩參考線
+      const active = state.series.filter(s => s.color !== 'context');
+      const scanned = active.length ? active : state.series;
+      for (const s of scanned) for (const p of s.values) seen(p.x, p.y);
+      for (const b of state.bands) { for (const p of b.lo) seen(p.x, p.y); for (const p of b.hi) seen(p.x, p.y); }
+      for (const r of state.refs) { if (r.y < lo) lo = r.y; if (r.y > hi) hi = r.y; }
+      if (!isFinite(lo)) { lo = 0; hi = 1; }
+      if (hi === lo) { hi += 1; lo -= 1; }
+      const pad = (hi - lo) * 0.08;
+      lo = Math.max(0, lo - pad); hi = hi + pad;
+      return [lo, hi];
+    }
+
+    let ydom = [0, 1];
+    const yTo = y => M.t + (1 - (y - ydom[0]) / (ydom[1] - ydom[0])) * (H - M.t - M.b);
+
+    function render() {
+      W = Math.max(360, wrap.clientWidth || 800);
+      svg.setAttribute('width', W); svg.setAttribute('height', H);
+      svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+      svg.replaceChildren();
+      ydom = yDomain();
+      const plot = svgEl('g');
+      // 背景（接住滑鼠事件）
+      plot.append(svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: css('--surface-1') }));
+      // 格線 + Y 刻度
+      for (const ty of niceTicks(ydom[0], ydom[1], 5)) {
+        const py = yTo(ty);
+        if (py < M.t - 1 || py > H - M.b + 1) continue;
+        plot.append(svgEl('line', { x1: M.l, x2: W - M.r, y1: py, y2: py, stroke: css('--grid'), 'stroke-width': 1 }));
+        const t = svgEl('text', { x: M.l - 8, y: py + 4, 'text-anchor': 'end', 'font-size': 11, fill: css('--muted') });
+        t.textContent = fmt(ty, 2); plot.append(t);
+      }
+      // X 刻度（整數年）
+      const xt = niceTicks(dom[0], dom[1], Math.min(10, Math.floor((W - M.l - M.r) / 70)))
+        .filter(v => Number.isInteger(v));
+      for (const tx of xt) {
+        const px = xTo(tx);
+        const t = svgEl('text', { x: px, y: H - M.b + 18, 'text-anchor': 'middle', 'font-size': 11, fill: css('--muted') });
+        t.textContent = String(tx); plot.append(t);
+        plot.append(svgEl('line', { x1: px, x2: px, y1: H - M.b, y2: H - M.b + 4, stroke: css('--baseline'), 'stroke-width': 1 }));
+      }
+      // 基準軸
+      plot.append(svgEl('line', { x1: M.l, x2: W - M.r, y1: H - M.b, y2: H - M.b, stroke: css('--baseline'), 'stroke-width': 1 }));
+      // Y 軸單位
+      if (state.yLabel) {
+        const t = svgEl('text', { x: 8, y: M.t - 6, 'text-anchor': 'start', 'font-size': 11, fill: css('--muted') });
+        t.textContent = state.yLabel; plot.append(t);
+      }
+      // 裁切區
+      const clipId = 'clip' + (opts.id || '');
+      const defs = svgEl('defs');
+      const clip = svgEl('clipPath', { id: clipId });
+      clip.append(svgEl('rect', { x: M.l, y: M.t, width: Math.max(0, W - M.l - M.r), height: Math.max(0, H - M.t - M.b) }));
+      defs.append(clip); plot.append(defs);
+      const inner = svgEl('g', { 'clip-path': `url(#${clipId})` });
+      plot.append(inner);
+      // 區間帶
+      for (const b of state.bands) {
+        const col = css(b.color);
+        const pts = [];
+        for (const p of b.hi) if (p.y != null) pts.push([xTo(p.x), yTo(p.y)]);
+        const back = [];
+        for (const p of b.lo) if (p.y != null) back.push([xTo(p.x), yTo(p.y)]);
+        if (pts.length && back.length) {
+          const dPath = 'M' + pts.map(p => p.join(',')).join('L') +
+            'L' + back.slice().reverse().map(p => p.join(',')).join('L') + 'Z';
+          inner.append(svgEl('path', { d: dPath, fill: col, opacity: 0.12 }));
+          inner.append(svgEl('path', { d: 'M' + pts.map(p => p.join(',')).join('L'),
+            fill: 'none', stroke: col, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+          inner.append(svgEl('path', { d: 'M' + back.map(p => p.join(',')).join('L'),
+            fill: 'none', stroke: col, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: 0.55 }));
+        }
+      }
+      // 參考線；標籤集中到 rightLabels，與端點標籤共用同一輪防碰撞
+      const rightLabels = [];
+      for (const r of state.refs) {
+        const py = yTo(r.y);
+        if (py < M.t || py > H - M.b) continue;
+        inner.append(svgEl('line', { x1: M.l, x2: W - M.r, y1: py, y2: py, stroke: css(r.color || '--muted'), 'stroke-width': 1 }));
+        rightLabels.push({ y: py, x: W - M.r, text: r.label + (r.showVal === false ? '' : ' ' + fmt(r.y, 1)),
+          size: 11, fill: css('--ink-2'), leader: css(r.color || '--muted') });
+      }
+      // 折線：先畫弱化背景線，再畫選取線
+      const ordered = state.series.slice().sort((a, b) => (a.color === 'context' ? 0 : 1) - (b.color === 'context' ? 0 : 1));
+      for (const s of ordered) {
+        const col = s.color === 'context' ? css('--context') : css(s.color);
+        const pts = s.values.filter(p => p.y != null).map(p => [xTo(p.x), yTo(p.y), p.x, p.y]);
+        if (!pts.length) continue;
+        inner.append(svgEl('path', { d: 'M' + pts.map(p => p[0] + ',' + p[1]).join('L'),
+          fill: 'none', stroke: col, 'stroke-width': s.color === 'context' ? 1.25 : 2,
+          'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+        if (s.color !== 'context') {
+          // 可視域內最後一點 → 端點標記 + 直接標籤
+          const vis = pts.filter(p => p[2] >= dom[0] - 1e-9 && p[2] <= dom[1] + 1e-9);
+          const last = vis[vis.length - 1] || pts[pts.length - 1];
+          inner.append(svgEl('circle', { cx: last[0], cy: last[1], r: 4.5, fill: col,
+            stroke: css('--surface-1'), 'stroke-width': 2 }));
+          rightLabels.push({ x: Math.min(last[0], W - M.r), y: last[1], text: s.name,
+            size: 12, fill: css('--ink'), leader: col });
+        }
+      }
+      // 右側標籤統一防碰撞：參考線與端點同一輪；先往下推、再回推消化底部溢出，
+      // 被推離原位者畫該線同色的引導線，讀者才能對回所屬線條
+      rightLabels.sort((a, b) => a.y - b.y);
+      let prevLab = -Infinity;
+      for (const L of rightLabels) { L.ly = Math.max(L.y, prevLab + 14, M.t + 8); prevLab = L.ly; }
+      let nextLab = H - M.b + 12;
+      for (let i = rightLabels.length - 1; i >= 0; i--) {
+        rightLabels[i].ly = Math.min(rightLabels[i].ly, nextLab - 14); nextLab = rightLabels[i].ly;
+      }
+      for (const L of rightLabels) {
+        if (Math.abs(L.ly - L.y) > 6) {
+          plot.append(svgEl('line', { x1: L.x + 5, x2: W - M.r + 4, y1: L.y, y2: L.ly - 4,
+            stroke: L.leader, 'stroke-width': 1, opacity: 0.8 }));
+        }
+        const t = svgEl('text', { x: W - M.r + 6, y: L.ly, 'font-size': L.size, fill: L.fill });
+        t.textContent = L.text; plot.append(t);
+      }
+      // 十字準線層
+      crossG = svgEl('g');
+      plot.append(crossG);
+      svg.append(plot);
+    }
+
+    // --- 十字準線 + tooltip ---
+    let crossG = null;
+    function showCross(evt) {
+      if (dragging) return;
+      const rect = svg.getBoundingClientRect();
+      const px = evt.clientX - rect.left, py = evt.clientY - rect.top;
+      if (px < M.l || px > W - M.r || py < M.t || py > H - M.b) { hideCross(); return; }
+      const xv = xFrom(px);
+      // 取最近的資料 X（整數年）
+      const xs = opts.xValues;
+      let best = xs[0], bd = Infinity;
+      for (const v of xs) { const d2 = Math.abs(v - xv); if (d2 < bd) { bd = d2; best = v; } }
+      if (best < dom[0] - 0.5 || best > dom[1] + 0.5) { hideCross(); return; }
+      const bx = xTo(best);
+      crossG.replaceChildren(svgEl('line', { x1: bx, x2: bx, y1: M.t, y2: H - M.b,
+        stroke: css('--baseline'), 'stroke-width': 1 }));
+      // tooltip 內容：值為主、名稱為輔
+      tip.replaceChildren();
+      tip.append(el('div', { class: 'tt-title', text: (opts.xTipLabel || '') + best }));
+      const rows = opts.tipRows(best);
+      for (const r of rows) {
+        const key = el('span', { class: 'tt-key' }); key.style.borderTopColor = r.color;
+        tip.append(el('div', { class: 'tt-row' }, key,
+          el('span', { class: 'tt-val', text: r.value }),
+          el('span', { class: 'tt-name', text: r.name })));
+        // 準線上的標記點
+        if (r.py != null) crossG.append(svgEl('circle', { cx: bx, cy: r.py, r: 4,
+          fill: r.color, stroke: css('--surface-1'), 'stroke-width': 2 }));
+      }
+      if (!rows.length) { hideCross(); return; }
+      tip.style.display = 'block';
+      const tw = tip.offsetWidth, th2 = tip.offsetHeight;
+      let tx2 = px + 14; if (tx2 + tw > W - 4) tx2 = px - tw - 14;
+      let ty2 = Math.min(Math.max(4, py - th2 / 2), H - th2 - 4);
+      tip.style.left = tx2 + 'px'; tip.style.top = ty2 + 'px';
+    }
+    function hideCross() { tip.style.display = 'none'; if (crossG) crossG.replaceChildren(); }
+
+    // --- 縮放 / 平移 ---
+    const MIN_SPAN = opts.minSpan ?? 2;
+    function clampDom() {
+      let [a, b] = dom;
+      let span = Math.min(Math.max(b - a, MIN_SPAN), full[1] - full[0]);
+      if (a < full[0]) a = full[0];
+      if (a + span > full[1]) a = full[1] - span;
+      dom = [a, a + span];
+    }
+    function zoomAt(px, factor) {
+      const m = xFrom(px);
+      let a = m - (m - dom[0]) * factor;
+      let b = m + (dom[1] - m) * factor;
+      dom = [a, b]; clampDom(); scheduleRender();
+    }
+    svg.addEventListener('wheel', e => {
+      e.preventDefault();
+      const rect = svg.getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      const raw = e.deltaMode === 1 ? e.deltaY * 24 : e.deltaY;
+      const factor = Math.exp(Math.max(-120, Math.min(120, raw)) * 0.0022);
+      zoomAt(px, factor);
+      hideCross();
+    }, { passive: false });
+    let dragging = false, dragX = 0, dragDom = null, moved = false;
+    svg.addEventListener('pointerdown', e => {
+      dragging = true; moved = false; dragX = e.clientX; dragDom = dom.slice();
+      svg.setPointerCapture(e.pointerId); svg.style.cursor = 'grabbing'; hideCross();
+    });
+    svg.addEventListener('pointermove', e => {
+      if (dragging) {
+        const dx = e.clientX - dragX;
+        if (Math.abs(dx) > 2) moved = true;
+        const span = dragDom[1] - dragDom[0];
+        const perPx = span / Math.max(1, W - M.l - M.r);
+        dom = [dragDom[0] - dx * perPx, dragDom[1] - dx * perPx];
+        clampDom(); scheduleRender();
+      } else showCross(e);
+    });
+    const endDrag = e => { dragging = false; svg.style.cursor = ''; };
+    svg.addEventListener('pointerup', endDrag);
+    svg.addEventListener('pointercancel', endDrag);
+    svg.addEventListener('pointerleave', () => { if (!dragging) hideCross(); });
+    svg.addEventListener('dblclick', () => { dom = full.slice(); scheduleRender(); });
+    svg.addEventListener('keydown', e => {
+      const span = dom[1] - dom[0];
+      if (e.key === 'ArrowLeft') { dom = [dom[0] - span * .1, dom[1] - span * .1]; }
+      else if (e.key === 'ArrowRight') { dom = [dom[0] + span * .1, dom[1] + span * .1]; }
+      else if (e.key === '+' || e.key === '=') { const c = (dom[0] + dom[1]) / 2; dom = [c - span * .4, c + span * .4]; }
+      else if (e.key === '-' || e.key === '_') { const c = (dom[0] + dom[1]) / 2; dom = [c - span * .625, c + span * .625]; }
+      else if (e.key === '0') { dom = full.slice(); }
+      else return;
+      e.preventDefault(); clampDom(); scheduleRender();
+    });
+
+    let raf = 0;
+    function scheduleRender() { if (!raf) raf = requestAnimationFrame(() => { raf = 0; render(); }); }
+    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(scheduleRender).observe(wrap);
+
+    return {
+      node: wrap,
+      update(next) { Object.assign(state, next); scheduleRender(); },
+      reset() { dom = full.slice(); scheduleRender(); },
+      getState: () => state,
+      xToPx: xTo, yToPx: y => yTo(y),
+      currentYDomain: () => ydom,
+    };
+  }
+
+  // ================= 分頁 1：排名總表 =================
+  function buildSummary() {
+    const s = sections.summary; s.replaceChildren();
+    const maxRoe = Math.max(...D.summary.map(r => +r['平均ROE%'] || 0));
+    const maxIrr = Math.max(...D.summary.map(r => +r['含息IRR%'] || 0));
+    const bar = (v, max) => {
+      const box = el('span', { class: 'barbox' });
+      const b = el('span', { class: 'bar' });
+      b.style.width = Math.max(2, (Math.max(0, v) / max) * 64) + 'px';
+      box.append(b, el('span', { text: fmt(v, 1) }));
+      return box;
+    };
+    const hasDetail = new Set(D.roe.stocks.map(x => x.code));
+    const cols = [
+      { key: '排名', label: '排名', num: true },
+      { key: '代號', label: '代號', left: true, render: r => String(r['代號']) },
+      { key: '名稱', label: '名稱', left: true, render: r => r['名稱'] + (hasDetail.has(String(r['代號'])) ? ' ›' : '') },
+      { key: 'ROE>15%年數', label: 'ROE>15% 年數', render: r => r['ROE>15%年數'] },
+      { key: '平均ROE%', label: '平均 ROE%', num: true, render: r => bar(+r['平均ROE%'], maxRoe) },
+      { key: '中位ROE%', label: '中位 ROE%', num: true, dec: 1 },
+      { key: '最低ROE%', label: '最低 ROE%', num: true, dec: 1 },
+      { key: '含息IRR%', label: '含息 IRR%', num: true, render: r => bar(+r['含息IRR%'], maxIrr) },
+      { key: '期初價', label: '期初價', num: true, dec: 1 },
+      { key: '現價', label: '現價', num: true, dec: 1 },
+      { key: '20年累積配息', label: '20 年累積配息', num: true, dec: 1 },
+      { key: '便宜價', label: '便宜價', num: true, dec: 1 },
+      { key: '合理價', label: '合理價', num: true, dec: 1 },
+      { key: '現價/合理價', label: '現價/合理價', num: true, dec: 2 },
+    ];
+    const card = el('div', { class: 'card' },
+      el('h2', { text: '排名總表（' + D.summary.length + ' 檔）' }),
+      el('p', { class: 'sub', text: '依 ROE>15% 年數與含息 IRR 排名。點任一列可跳到該檔的股價區間（僅前 10 名有逐年明細）。點表頭可排序。' }),
+      sortableTable(cols, D.summary, {
+        initKey: '排名',
+        onRow: r => {
+          const code = String(r['代號']);
+          if (hasDetail.has(code)) { pricePick = code; selectTab('price'); }
+        },
+      }));
+    s.append(card);
+  }
+
+  // ================= 分頁 2：逐年 ROE =================
+  const roeSel = new Map(); // code -> slot index
+  ['5904', '2912', '9910'].forEach((c, i) => roeSel.set(c, i));
+  let roeShowTable = false;
+  let roeChart = null;
+
+  function roeAssignSlot() {
+    const used = new Set(roeSel.values());
+    for (let i = 0; i < MAX_SEL; i++) if (!used.has(i)) return i;
+    return -1;
+  }
+
+  function buildRoe() {
+    const s = sections.roe; s.replaceChildren();
+    const chips = el('div', { class: 'chips' });
+    for (const st of D.roe.stocks) {
+      const sel = roeSel.has(st.code);
+      const chip = el('button', { class: 'chip', 'aria-pressed': String(sel) });
+      const key = el('span', { class: 'key' });
+      if (sel) key.style.borderTopColor = css(SLOT_VARS[roeSel.get(st.code)]);
+      chip.append(key, el('span', { text: st.name + ' ' + st.code }));
+      chip.addEventListener('click', () => {
+        if (roeSel.has(st.code)) roeSel.delete(st.code);
+        else {
+          const slot = roeAssignSlot();
+          if (slot < 0) { hintEl.textContent = '一次最多比較 ' + MAX_SEL + ' 檔，請先取消一檔。'; return; }
+          roeSel.set(st.code, slot);
+        }
+        hintEl.textContent = HINT;
+        buildRoe();
+      });
+      chips.append(chip);
+    }
+    const HINT = '滾輪縮放・拖曳平移・雙擊重置';
+    const hintEl = el('span', { class: 'hint', text: HINT });
+    const tableBtn = el('button', { class: 'btn', text: roeShowTable ? '看圖表' : '看表格',
+      onclick: () => { roeShowTable = !roeShowTable; buildRoe(); } });
+    const card = el('div', { class: 'card' },
+      el('h2', { text: '逐年 ROE（前 10 名，' + D.roe.years[0] + '–' + D.roe.years.at(-1) + '）' }),
+      el('p', { class: 'sub', text: '灰線為未選取的其餘個股（背景脈絡）；點選股票加入比較。水平線為 ROE 15% 門檻。' }),
+      el('div', { class: 'toolbar' }, chips, el('span', { class: 'gap' }), hintEl, tableBtn));
+    s.append(card);
+
+    if (roeShowTable) {
+      const cols = [{ key: 'name', label: '股票', left: true, render: r => r.name + ' ' + r.code }];
+      D.roe.years.forEach((y, i) => cols.push({ key: 'y' + i, label: String(y), num: true, dec: 1 }));
+      const rows = D.roe.stocks.map(st => {
+        const o = { name: st.name, code: st.code };
+        st.values.forEach((v, i) => o['y' + i] = v);
+        return o;
+      });
+      card.append(sortableTable(cols, rows, {}));
+      return;
+    }
+
+    const years = D.roe.years;
+    const chart = zoomChart({
+      id: 'roe',
+      xExtent: [years[0] - 0.4, years.at(-1) + 0.4],
+      xValues: years,
+      xTipLabel: '',
+      yLabel: 'ROE %',
+      minSpan: 3,
+      ariaLabel: '逐年 ROE 互動折線圖，滾輪縮放、拖曳平移',
+      tipRows: (year) => {
+        const i = years.indexOf(year);
+        if (i < 0) return [];
+        const out = [];
+        for (const [code, slot] of roeSel) {
+          const st = D.roe.stocks.find(x => x.code === code);
+          if (!st || st.values[i] == null) continue;
+          out.push({ name: st.name, value: fmt(st.values[i], 1) + '%',
+            color: css(SLOT_VARS[slot]), y: st.values[i] });
+        }
+        out.sort((a, b) => b.y - a.y);
+        for (const o of out) o.py = chart.yToPx(o.y);
+        return out;
+      },
+    });
+    roeChart = chart;
+    const series = [];
+    for (const st of D.roe.stocks) {
+      const vals = st.values.map((v, i) => ({ x: years[i], y: v }));
+      if (roeSel.has(st.code)) series.push({ name: st.name, color: SLOT_VARS[roeSel.get(st.code)], values: vals });
+      else series.push({ name: st.name, color: 'context', values: vals });
+    }
+    chart.update({ series, bands: [], refs: [{ y: 15, label: 'ROE 15% 門檻', color: '--muted', showVal: false }] });
+    card.append(chart.node);
+  }
+
+  // ================= 分頁 3：股價區間 =================
+  let pricePick = '5904';
+  let priceShowTable = false;
+
+  function buildPrice() {
+    const s = sections.price; s.replaceChildren();
+    const chips = el('div', { class: 'chips' });
+    for (const st of D.high.stocks) {
+      const chip = el('button', { class: 'chip', 'aria-pressed': String(st.code === pricePick) });
+      const key = el('span', { class: 'key' });
+      if (st.code === pricePick) key.style.borderTopColor = css('--series-1');
+      chip.append(key, el('span', { text: st.name + ' ' + st.code }));
+      chip.addEventListener('click', () => { pricePick = st.code; buildPrice(); });
+      chips.append(chip);
+    }
+    const st = D.high.stocks.find(x => x.code === pricePick) || D.high.stocks[0];
+    const lo = D.low.stocks.find(x => x.code === st.code);
+    const v = valByCode.get(st.code);
+    const tableBtn = el('button', { class: 'btn', text: priceShowTable ? '看圖表' : '看表格',
+      onclick: () => { priceShowTable = !priceShowTable; buildPrice(); } });
+    const card = el('div', { class: 'card' },
+      el('h2', { text: '股價區間 — ' + st.name + ' ' + st.code + '（' + D.high.years[0] + '–' + D.high.years.at(-1) + '）' }),
+      el('p', { class: 'sub', text: '藍色帶為每年「最低價～最高價」；右側水平線為估值參考（便宜／合理／昂貴）與現價。' }),
+      el('div', { class: 'toolbar' }, chips, el('span', { class: 'gap' }),
+        el('span', { class: 'hint', text: '滾輪縮放・拖曳平移・雙擊重置' }), tableBtn));
+    s.append(card);
+
+    if (priceShowTable) {
+      const cols = [
+        { key: 'y', label: '年份', num: true, left: true, render: r => String(r.y) },
+        { key: 'hi', label: '最高價', num: true, dec: 1 },
+        { key: 'lo', label: '最低價', num: true, dec: 1 },
+        { key: 'range', label: '振幅（高/低）', num: true, dec: 2 },
+      ];
+      const rows = D.high.years.map((y, i) => ({
+        y, hi: st.values[i], lo: lo.values[i],
+        range: (st.values[i] != null && lo.values[i]) ? st.values[i] / lo.values[i] : null,
+      }));
+      card.append(sortableTable(cols, rows, { initKey: 'y' }));
+      return;
+    }
+
+    const years = D.high.years;
+    const chart = zoomChart({
+      id: 'price',
+      xExtent: [years[0] - 0.4, years.at(-1) + 0.4],
+      xValues: years,
+      yLabel: '股價（元）',
+      minSpan: 3,
+      rightPad: 132,
+      ariaLabel: st.name + ' 逐年股價區間圖，滾輪縮放、拖曳平移',
+      tipRows: (year) => {
+        const i = years.indexOf(year);
+        if (i < 0) return [];
+        const c1 = css('--series-1');
+        const rows = [];
+        if (st.values[i] != null) rows.push({ name: '最高', value: fmt(st.values[i], 1), color: c1, y: st.values[i], py: chart.yToPx(st.values[i]) });
+        if (lo.values[i] != null) rows.push({ name: '最低', value: fmt(lo.values[i], 1), color: c1, y: lo.values[i], py: chart.yToPx(lo.values[i]) });
+        return rows;
+      },
+    });
+    const refs = [];
+    if (v) {
+      if (typeof v['便宜價(積極)'] === 'number') refs.push({ y: v['便宜價(積極)'], label: '便宜', color: '--good' });
+      if (typeof v['合理價'] === 'number') refs.push({ y: v['合理價'], label: '合理', color: '--muted' });
+      if (typeof v['昂貴價參考'] === 'number') refs.push({ y: v['昂貴價參考'], label: '昂貴', color: '--serious' });
+      if (typeof v['現價'] === 'number') refs.push({ y: v['現價'], label: '現價', color: '--series-1' });
+    }
+    chart.update({
+      series: [],
+      bands: [{ color: '--series-1',
+        hi: years.map((y, i) => ({ x: y, y: st.values[i] })),
+        lo: years.map((y, i) => ({ x: y, y: lo.values[i] })) }],
+      refs,
+    });
+    card.append(chart.node);
+  }
+
+  // ================= 分頁 4：估值與建議 =================
+  function buildVal() {
+    const s = sections.val; s.replaceChildren();
+    const statusOf = txt => {
+      if (txt.includes('可分批買進')) return { cls: 'buy', icon: '✓' };
+      if (txt.includes('合理區間')) return { cls: 'fair', icon: '◆' };
+      return { cls: 'wait', icon: '↥' };
+    };
+    const track = r => {
+      const cheap = +r['便宜價(積極)'], fair = +r['合理價'], exp = +r['昂貴價參考'], now = +r['現價'];
+      if (![cheap, fair, exp, now].every(Number.isFinite)) return el('span', { text: '–' });
+      const a = cheap * 0.8, b = exp * 1.12;
+      const raw = x => (x - a) / (b - a) * 100;
+      const pos = x => Math.min(100, Math.max(0, raw(x))) + '%';
+      const over = raw(now) > 100, under = raw(now) < 0;
+      const overNote = over ? '（超出右端，為昂貴價的 ' + fmt(now / exp, 2) + ' 倍）'
+        : under ? '（低於左端）' : '';
+      const t = el('span', { class: 'track', title: '便宜 ' + fmt(cheap, 1) + '｜合理 ' + fmt(fair, 1) + '｜昂貴 ' + fmt(exp, 1) + '｜現價 ' + fmt(now, 1) + overNote });
+      t.append(el('span', { class: 'rail' }));
+      for (const x of [cheap, fair, exp]) {
+        const tick = el('span', { class: 'tick' }); tick.style.left = pos(x); t.append(tick);
+      }
+      const pin = el('span', { class: 'pin' + (over ? ' over' : under ? ' under' : '') });
+      if (!over && !under) pin.style.left = pos(now);
+      t.append(pin);
+      return t;
+    };
+    const cols = [
+      { key: '排名', label: '排名', num: true },
+      { key: '代號', label: '代號', left: true, render: r => String(r['代號']) },
+      { key: '名稱', label: '名稱', left: true, render: r => r['名稱'] },
+      { key: '現價', label: '現價', num: true, dec: 1 },
+      { key: '目前本益比', label: '本益比', num: true, dec: 1 },
+      { key: '目前股價淨值比', label: '股價淨值比', num: true, dec: 1 },
+      { key: '目前殖利率%', label: '殖利率%', num: true, dec: 2 },
+      { key: '近4季EPS', label: '近 4 季 EPS', num: true, dec: 2 },
+      { key: '每股淨值', label: '每股淨值', num: true, dec: 1 },
+      { key: '便宜價(積極)', label: '便宜價', num: true, dec: 1 },
+      { key: '合理價', label: '合理價', num: true, dec: 1 },
+      { key: '昂貴價參考', label: '昂貴價', num: true, dec: 1 },
+      { key: '_pos', label: '價格位置', render: track },
+      { key: '建議', label: '建議', left: true, render: r => {
+        const stt = statusOf(String(r['建議']));
+        return el('span', { class: 'status ' + stt.cls },
+          el('span', { class: 'dot' }),
+          el('span', { text: stt.icon + ' ' + r['建議'] }));
+      } },
+    ];
+    const card = el('div', { class: 'card' },
+      el('h2', { text: '估值與買進建議（前 ' + D.valuation.length + ' 名）' }),
+      el('p', { class: 'sub', text: '「價格位置」軌道：三格刻度依序為便宜／合理／昂貴價，圓點為現價位置；現價超出量程時以 ▶ 箭頭表示（滑鼠停留可看數值與倍數）。本表為原始檔內容之呈現，非投資建議。' }),
+      sortableTable(cols, D.valuation, { initKey: '排名' }));
+    s.append(card);
+  }
+
+  // ---------- 主渲染 ----------
+  function renderAll() {
+    const active = TABS.find(t => t.btn.getAttribute('aria-selected') === 'true');
+    if (!active) return;
+    if (active.id === 'summary') buildSummary();
+    if (active.id === 'roe') buildRoe();
+    if (active.id === 'price') buildPrice();
+    if (active.id === 'val') buildVal();
+  }
+  selectTab('summary');
+})();
+</script>
+</body>
+</html>
